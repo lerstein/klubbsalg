@@ -837,14 +837,20 @@ function speakWelcome(){      // reservestemme hvis lydfilen mangler
     window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
   } catch(e) {}
 }
-function playWelcome(){       // spilles ved første trykk (nettlesere tillater ikke lyd før brukeren har trykket)
-  if (!soundOn) return;
-  let fell = false;
-  const fb = () => { if (fell) return; fell = true; speakWelcome(); };
+let welcomed = false, welcoming = false;
+function playWelcome(){       // spilles ved første ekte berøring. iPhone og Chrome godtar ikke «pointerdown» som berøring, bare slipp/klikk.
+  if (welcomed || welcoming || !soundOn) return;
+  welcoming = true;
+  const fb = () => { if (welcomed) return; welcomed = true; welcoming = false; speakWelcome(); };
   try {
     const a = new Audio("velkommen.mp3");
-    a.addEventListener("error", fb);
-    const pr = a.play(); if (pr && pr.catch) pr.catch(fb);
+    a.addEventListener("error", fb);                      // filen finnes ikke eller kan ikke leses: reservestemme
+    const pr = a.play();
+    if (pr && pr.then) pr.then(() => { welcomed = true; welcoming = false; }).catch(err => {
+      if (err && err.name === "NotAllowedError") { welcoming = false; return; }   // ikke tillatt ennå: prøv igjen ved neste trykk
+      fb();
+    });
+    else { welcomed = true; welcoming = false; }
   } catch(e) { fb(); }
 }
 function renderSoundBtn(){
@@ -1475,8 +1481,9 @@ function init(){
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("vippsModal").hidden) vippsClose(); });
   renderSoundBtn();
   $("soundBtn").addEventListener("click", toggleSound);
-  document.addEventListener("pointerdown", () => { if (soundOn) audio(); }, { once: true });
-  document.addEventListener("pointerdown", () => { playWelcome(); }, { once: true });
+  ["click", "touchend", "pointerup", "keydown"].forEach(ev => {
+    document.addEventListener(ev, () => { if (soundOn) audio(); playWelcome(); }, { passive: true });   // låser opp lyd og spiller velkomsten ved første berøring
+  });
   setTimeout(() => { const w = $("welcome"); w.classList.add("gone"); setTimeout(() => { w.hidden = true; }, 700); }, 7000);
   $("verTxt").textContent = "· v" + APP_VERSION; $("verFoot").textContent = "Klubbsalg v" + APP_VERSION;
   $("standSelect").addEventListener("change", standChanged);
