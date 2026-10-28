@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Klubbsalg">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#111111">
+<title>Klubbsalg</title>
+<style>
+/* Layout: ett løp på mobil (registrer, oppgjør, liste, vedlikehold, sikkerhetskopi). Samme mørke og gull som tidligere versjoner. */
+:root{
+  --bg:#111111; --panel:#1b1b1b; --field:#0d0d0d; --line:#333333; --line-strong:#4a4a4a;
+  --fg:#f5f5f5; --muted:#a8a8a8; --gold:#b8860b; --gold-ink:#141000;
+  --danger:#8b0000; --danger-ink:#ffffff;
+  --ok-bg:#102010; --ok-line:#2f7d32; --ok-fg:#bfffc2;
+  --warn-bg:#332400; --warn-line:#9b6a00; --warn-fg:#ffd98a;
+  --err-bg:#3a0000; --err-line:#8b0000; --err-fg:#ffc8c8;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums}
+header{position:sticky;top:0;z-index:5;background:#1f1f1f;border-bottom:1px solid var(--line);
+  padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:22px;line-height:1.1}
+h2{margin:0 0 4px;font-size:18px}
+h3{margin:18px 0 6px;font-size:14px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.sub{color:var(--muted);font-size:13px}
+.pill{font-size:12px;padding:4px 10px;border-radius:99px;border:1px solid var(--ok-line);background:var(--ok-bg);color:var(--ok-fg);white-space:nowrap}
+.pill.bad{border-color:var(--err-line);background:var(--err-bg);color:var(--err-fg)}
+.pill.warn{border-color:var(--warn-line);background:var(--warn-bg);color:var(--warn-fg)}
+.modal{position:fixed;inset:0;z-index:30;background:#000c;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal-card{width:100%;max-width:420px;max-height:100%;overflow-y:auto;background:var(--panel);border:1px solid var(--line-strong);border-radius:14px;padding:18px}
+.modal-card .row{margin-top:14px}
+.modal-card .row button{margin-top:0}
+details.help{margin-top:14px;font-size:14px;color:#cfcfcf}
+details.help summary{cursor:pointer;min-height:44px;display:flex;align-items:center}
+details.help ol{padding-left:20px;margin:6px 0}
+details.help li{margin-bottom:6px}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;overflow-wrap:anywhere}
+main{max-width:1000px;margin:0 auto;padding:14px max(16px,env(safe-area-inset-right,0px)) calc(90px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px;min-width:0}
+label,legend{display:block;margin-top:12px;font-size:14px;color:#cfcfcf;padding:0}
+legend{margin-top:18px}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+input,select,button,textarea{font:inherit;font-size:16px;width:100%;min-height:48px;padding:10px 12px;margin-top:5px;border-radius:10px;border:1px solid var(--line-strong);background:var(--field);color:var(--fg)}
+button{background:var(--gold);color:var(--gold-ink);font-weight:700;border:0;cursor:pointer;margin-top:14px}
+button.secondary{background:#333;color:var(--fg)}
+button.danger{background:var(--danger);color:var(--danger-ink)}
+button.small{width:auto;min-height:40px;padding:6px 12px;margin-top:0;font-size:14px}
+button:disabled{opacity:.5;cursor:not-allowed}
+:focus-visible{outline:3px solid #ffd35c;outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0 14px}
+.grid>div{min-width:0}
+.row{display:flex;gap:10px;align-items:flex-end}
+.row>*{min-width:0}
+.row>.grow{flex:1}
+.pay{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+.chip{margin:0;position:relative}
+.chip input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
+.chip span{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:10px;border:1px solid var(--line-strong);background:var(--field);font-weight:600;font-size:15px}
+.chip input:checked+span{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.chip input:focus-visible+span{outline:3px solid #ffd35c;outline-offset:2px}
+.msg{margin-top:12px;padding:10px 12px;border-radius:10px;font-size:14px;border:1px solid var(--warn-line);background:var(--warn-bg);color:var(--warn-fg)}
+.msg.err{border-color:var(--err-line);background:var(--err-bg);color:var(--err-fg)}
+.msg.ok{border-color:var(--ok-line);background:var(--ok-bg);color:var(--ok-fg)}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:10px}
+.box{background:var(--field);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:14px;color:var(--muted)}
+.box strong{display:block;font-size:21px;margin-top:2px;color:var(--fg)}
+.box.hl{border-color:var(--gold)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
+th{color:#ddd;white-space:nowrap}
+td.num,th.num{text-align:right;white-space:nowrap}
+tfoot td{font-weight:700;border-bottom:0}
+.list-row{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.list-row .name{flex:1;min-width:0;overflow-wrap:anywhere}
+.list-row input{width:96px;margin:0;min-height:40px}
+.btns{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 12px}
+textarea{min-height:90px;font-size:13px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:20;
+  max-width:min(560px,calc(100% - 32px));display:flex;gap:12px;align-items:center;background:#2a2a2a;border:1px solid var(--line-strong);border-radius:12px;padding:10px 14px;box-shadow:0 6px 24px #000a}
+.toast button{margin:0}
+[hidden]{display:none!important}
+.sales{display:grid;gap:10px;margin-top:10px}
+.sale{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:start;background:var(--field);border:1px solid var(--line);border-radius:12px;padding:12px}
+.sale .main{grid-column:1;font-weight:600;overflow-wrap:anywhere}
+.sale .amt{grid-column:2;grid-row:1;font-weight:700;font-size:18px;text-align:right;white-space:nowrap}
+.sale .meta,.sale .extra,.sale .note{grid-column:1;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.sale .note{color:var(--fg)}
+.sale .acts{grid-column:2;grid-row:2 / span 4;align-self:end;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:650px){
+  .pay{grid-template-columns:repeat(2,1fr)}
+  .list-row{flex-wrap:wrap}
+  .list-row .name{flex:1 1 100%}
+  .list-row input{flex:1}
+}
+@media(prefers-reduced-motion:no-preference){.toast{animation:up .18s ease-out}@keyframes up{from{opacity:0;transform:translate(-50%,8px)}}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Klubbsalg</h1>
+    <div class="sub">Salg, rabatt og oppgjør</div>
+  </div>
+  <span id="storagePill" class="pill">Lagring sjekkes …</span>
+</header>
+
+<main>
+  <section class="card" aria-labelledby="hSale">
+    <h2 id="hSale">Legg inn salg</h2>
+    <form id="saleForm" novalidate autocomplete="off">
+      <div class="grid">
+        <div>
+          <label for="sellerSelect">Selger</label>
+          <select id="sellerSelect"></select>
+        </div>
+        <div id="newSellerBox" hidden>
+          <label for="newSeller">Ny selger</label>
+          <input id="newSeller" placeholder="Navn" autocapitalize="words">
+        </div>
+        <div>
+          <label for="productSelect">Produkt</label>
+          <select id="productSelect"></select>
+        </div>
+        <div id="newProductBox" hidden>
+          <label for="newProduct">Nytt produkt</label>
+          <input id="newProduct" placeholder="Produktnavn" autocapitalize="sentences">
+        </div>
+        <div>
+          <label for="qty">Antall</label>
+          <input id="qty" type="number" inputmode="numeric" min="1" step="1" value="1">
+        </div>
+        <div>
+          <label for="normalPrice">Normalpris per stk (kr)</label>
+          <input id="normalPrice" type="number" inputmode="numeric" min="0" step="1" placeholder="500">
+        </div>
+        <div>
+          <label for="soldTotal">Solgt for totalt (kr)</label>
+          <div class="row">
+            <input id="soldTotal" class="grow" type="number" inputmode="numeric" min="0" step="1" placeholder="Beløp">
+            <button type="button" class="secondary small" id="fullPriceBtn" title="Fyll inn antall × normalpris">Full pris</button>
+          </div>
+        </div>
+      </div>
+      <fieldset>
+        <legend>Betaling</legend>
+        <div class="pay" id="payGroup"></div>
+      </fieldset>
+      <label for="note">Kommentar</label>
+      <input id="note" placeholder="F.eks. avslag, kompispris, levert senere">
+      <div id="formMsg" class="msg err" role="alert" hidden></div>
+      <button type="submit" id="saveSaleBtn">Lagre salg</button>
+    </form>
+  </section>
+
+  <section class="card" aria-labelledby="hSum">
+    <div class="row">
+      <div class="grow"><h2 id="hSum">Oppgjør</h2><div class="sub" id="sumInfo"></div></div>
+      <div style="width:130px">
+        <label for="period" style="margin-top:0">Vis</label>
+        <select id="period"><option value="alle">Alle salg</option><option value="idag">Bare i dag</option></select>
+      </div>
+    </div>
+    <div class="summary" id="sumBoxes"></div>
+    <h3>Per betalingsmåte</h3>
+    <div class="summary" id="payBoxes"></div>
+    <h3>Per selger</h3>
+    <div class="scroll"><table id="sellerTable"></table></div>
+    <h3>Per produkt</h3>
+    <div class="scroll"><table id="productTable"></table></div>
+  </section>
+
+  <section class="card" aria-labelledby="hList">
+    <h2 id="hList">Salgsliste</h2>
+    <div id="salesBody" class="sales"></div>
+    <p class="sub" id="emptyList" hidden>Ingen salg ennå. Første salg dukker opp her.</p>
+  </section>
+
+  <section class="card" aria-labelledby="hReg">
+    <h2 id="hReg">Selgere og produkter</h2>
+    <p class="sub">Endringer her påvirker bare valglistene. Registrerte salg endres ikke.</p>
+    <h3>Produkter</h3>
+    <div id="productList"></div>
+    <div class="grid">
+      <div><label for="manualProduct">Nytt produkt</label><input id="manualProduct" placeholder="F.eks. Dogtag"></div>
+      <div><label for="manualPrice">Standardpris (kr)</label><input id="manualPrice" type="number" inputmode="numeric" min="0" step="1" placeholder="Valgfritt"></div>
+    </div>
+    <button type="button" class="secondary" id="addProductBtn">Legg til produkt</button>
+    <h3>Selgere</h3>
+    <div id="sellerList"></div>
+    <label for="manualSeller">Ny selger</label>
+    <input id="manualSeller" placeholder="Navn" autocapitalize="words">
+    <button type="button" class="secondary" id="addSellerBtn">Legg til selger</button>
+  </section>
+
+  <section class="card" aria-labelledby="hSheet">
+    <h2 id="hSheet">Google Sheet</h2>
+    <p class="sub" id="sheetStatus">Ikke koblet til. Salg lagres bare på denne telefonen.</p>
+    <div id="sheetConnect">
+      <label for="sheetUrl">Nettapp-URL fra Apps Script</label>
+      <input id="sheetUrl" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" autocapitalize="none" autocorrect="off" spellcheck="false">
+      <button type="button" id="connectBtn">Koble til</button>
+    </div>
+    <div id="sheetConnected" hidden>
+      <div class="btns">
+        <button type="button" class="secondary" id="syncBtn">Synk nå</button>
+        <button type="button" class="secondary" id="shareBtn">Kopier delingslenke</button>
+        <button type="button" class="secondary" id="disconnectBtn">Koble fra</button>
+      </div>
+    </div>
+    <div id="sheetMsg" class="msg" role="status" hidden></div>
+    <details class="help">
+      <summary>Slik setter du opp Google Sheet</summary>
+      <ol>
+        <li>Lag et nytt Google Sheet. Åpne <strong>Utvidelser › Apps Script</strong> og lim inn hele filen <span class="mono">Code.gs</span>.</li>
+        <li>Under <strong>Prosjektinnstillinger › Skriptegenskaper</strong> legger du til <span class="mono">ADMIN_PASSWORD</span> med passordet som skal brukes for å slette.</li>
+        <li><strong>Distribuer › Ny distribusjon › Nettapp</strong>, kjør som deg selv, tilgang for alle. Godkjenn og kopier URL-en som slutter på <span class="mono">/exec</span>.</li>
+        <li>Lim URL-en inn her og trykk Koble til. Del deretter «delingslenken» med selgerne, så slipper de å lime inn noe.</li>
+      </ol>
+    </details>
+  </section>
+
+  <section class="card" aria-labelledby="hBak">
+    <h2 id="hBak">Eksport og sikkerhetskopi</h2>
+    <p class="sub">Salgene lagres i nettleseren på denne telefonen. For å samle salg fra flere telefoner: last ned sikkerhetskopi på hver telefon og importer filene på den som skal ha oversikten. Import slår sammen uten dubletter.</p>
+    <div class="btns">
+      <button type="button" class="secondary" id="csvBtn">Eksporter CSV (Excel)</button>
+      <button type="button" class="secondary" id="jsonBtn">Last ned sikkerhetskopi</button>
+      <button type="button" class="secondary" id="copyBtn">Kopier sikkerhetskopi som tekst</button>
+      <button type="button" class="secondary" id="importBtn">Importer sikkerhetskopi</button>
+      <button type="button" class="secondary" id="oldBtn">Hent fra eldre versjoner</button>
+    </div>
+    <input id="importFile" type="file" accept="application/json,.json" hidden>
+    <div id="bakMsg" class="msg" role="status" hidden></div>
+    <h3>Faresone</h3>
+    <p class="sub">Sletting av salg krever tilkobling til Google Sheet og administratorpassord.</p>
+    <button type="button" class="danger" id="clearBtn">Slett alle salg</button>
+  </section>
+</main>
+
+<div id="pwModal" class="modal" hidden>
+  <form id="pwForm" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="pwTitle" autocomplete="off">
+    <h2 id="pwTitle">Bekreft med passord</h2>
+    <p class="sub" id="pwDetail"></p>
+    <div id="pwField">
+      <label for="pwInput">Administratorpassord</label>
+      <input id="pwInput" type="password" autocomplete="off" autocapitalize="none" spellcheck="false">
+    </div>
+    <div id="pwMsg" class="msg err" role="alert" hidden></div>
+    <div class="row">
+      <button type="button" class="secondary grow" id="pwCancel">Avbryt</button>
+      <button type="submit" class="danger grow" id="pwOk">Bekreft</button>
+    </div>
+  </form>
+</div>
+
+<div id="editModal" class="modal" hidden>
+  <form id="editForm" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="eTitle" autocomplete="off" novalidate>
+    <h2 id="eTitle">Rediger salg</h2>
+    <p class="sub" id="eInfo"></p>
+    <label for="eProduct">Produkt</label>
+    <select id="eProduct"></select>
+    <div class="grid">
+      <div><label for="eQty">Antall</label><input id="eQty" type="number" inputmode="numeric" min="1" step="1"></div>
+      <div><label for="ePrice">Normalpris per stk (kr)</label><input id="ePrice" type="number" inputmode="numeric" min="0" step="1"></div>
+    </div>
+    <label for="eSold">Solgt for totalt (kr)</label>
+    <input id="eSold" type="number" inputmode="numeric" min="0" step="1">
+    <label for="ePay">Betaling</label>
+    <select id="ePay"><option>Vipps</option><option>Kontant</option><option>Bank</option><option>Annet</option></select>
+    <label for="eNote">Kommentar</label>
+    <input id="eNote">
+    <div id="eMsg" class="msg err" role="alert" hidden></div>
+    <div class="row">
+      <button type="button" class="secondary grow" id="eCancel">Avbryt</button>
+      <button type="submit" class="grow" id="eSave">Lagre endring</button>
+    </div>
+  </form>
+</div>
+
+<div id="toast" class="toast" role="status" hidden><span id="toastText"></span><button type="button" class="secondary small" id="toastAction" hidden>Angre</button></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- Grunnlag ---------- */
+const KEY = "klubbsalg_v3";
+const PAYMENTS = ["Vipps","Kontant","Bank","Annet"];
+const DEFAULT_PRODUCTS = [
+  {name:"Zippo lighter", normalPrice:500},
+  {name:"Kortholder", normalPrice:400},
+  {name:"T-skjorte", normalPrice:0},
+  {name:"Support-trøye", normalPrice:0}
+];
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const nf = n => Math.round(Number(n) || 0).toLocaleString("no-NO");
+const kr = n => nf(n) + " kr";
+const clean = s => String(s ?? "").replace(/\s+/g, " ").trim();
+const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+const payKey = p => PAYMENTS.includes(p) ? p : "Annet";
+const byName = (a, b) => a.localeCompare(b, "no");
+
+// pend: selgere og produkter som er lagt til her og ennå ikke er sendt til Google Sheet
+let state = { sales: [], sellers: [], products: DEFAULT_PRODUCTS.map(p => ({...p})), pend: { sellers: [], products: [] } };
+let storageOk = true;
+let loadedOk = true;   // false hvis lagrede data var uleselige: da skriver vi ikke over uten at brukeren har fått beskjed
+let undoFn = null, toastTimer = null;
+
+/* Google Sheet */
+const SHEET_KEY = KEY + "_sheet";
+const SHEET_URL_RE = /^(https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec|http:\/\/(localhost|127\.0\.0\.1):\d+\/exec)$/;
+let cfg = { url: "" };
+let syncing = false, lastSync = 0, syncError = "", syncAgain = false, syncSoon = null;
+
+/* Egne salg: kan endres/slettes uten passord i et tidsrom. Serveren håndhever regelen, dette styrer bare hva som vises. */
+const DEVICE_KEY = KEY + "_enhet";
+let deviceToken = "";
+let editWinMin = 30;
+const canOwn = s => !!cfg.url && s.mine === true && s.ts > 0 && (Date.now() - s.ts) < editWinMin * 60000;
+const minsLeft = s => Math.max(1, Math.ceil((editWinMin * 60000 - (Date.now() - s.ts)) / 60000));
+
+/* ---------- Lagring ---------- */
+function readLS(k){ try { return localStorage.getItem(k); } catch(e){ storageOk = false; return null; } }
+function writeLS(k, v){ try { localStorage.setItem(k, v); return true; } catch(e){ storageOk = false; return false; } }
+function parseArr(raw){ try { const a = JSON.parse(raw || "[]"); return Array.isArray(a) ? a : []; } catch(e){ return []; } }
+
+function save(){
+  const ok = writeLS(KEY, JSON.stringify(state));
+  storageOk = ok;
+  renderPill();
+  return ok;
+}
+
+/* ---------- Rensing og sammenslåing ---------- */
+function cleanSale(s){
+  if (!s || typeof s !== "object") return null;
+  const seller = clean(s.seller), product = clean(s.product);
+  if (!seller || !product) return null;
+  const qty = Math.max(1, Math.round(Number(s.qty) || 1));
+  const normalPrice = Math.max(0, Number(s.normalPrice) || 0);
+  const soldTotal = Number(s.soldTotal) || 0;
+  const hasNT = s.normalTotal !== undefined && s.normalTotal !== null && Number.isFinite(Number(s.normalTotal));
+  const normalTotal = hasNT ? Number(s.normalTotal) : (normalPrice > 0 ? qty * normalPrice : soldTotal);
+  const hasD = s.discount !== undefined && s.discount !== null && Number.isFinite(Number(s.discount));
+  const discount = hasD ? Number(s.discount) : normalTotal - soldTotal;
+  let ts = Number(s.ts) || 0;
+  if (!ts && Number(s.id) > 1e12) ts = Number(s.id);   // gamle versjoner brukte Date.now() som id
+  return {
+    id: String(s.id ?? uid()), ts, date: s.date ? String(s.date) : "",
+    seller, product, qty, normalPrice, normalTotal, soldTotal, discount,
+    payment: clean(s.payment) || "Annet", note: String(s.note ?? "").trim(),
+    synced: s.synced === true, mine: s.mine === true
+  };
+}
+
+// flag: true/false overstyrer «synced» på nye salg (true = hentet fra Sheet, false = må sendes). noLists: ikke rør valglistene.
+function mergeIn(data, flag, noLists){
+  let added = 0, skipped = 0, bad = 0;
+  const ids = new Set(state.sales.map(s => s.id));
+  for (const raw of (data.sales || [])) {
+    const c = cleanSale(raw);
+    if (!c) { bad++; continue; }
+    if (ids.has(c.id)) { skipped++; continue; }
+    if (flag !== undefined) { c.synced = flag; c.mine = false; }   // «mine» gjelder bare salg registrert på denne telefonen
+    ids.add(c.id); state.sales.push(c); added++;
+  }
+  if (!noLists) {
+    for (const n of (data.sellers || [])) addSellerName(n);
+    for (const p of (data.products || [])) {
+      if (p && p.name) addProductRecord(p.name, p.normalPrice);
+    }
+    for (const s of state.sales) { addSellerName(s.seller); addProductRecord(s.product, 0); }
+  }
+  state.sales.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  return { added, skipped, bad };
+}
+
+// track: nytt navn legges i «pend» og sendes til Google Sheet ved neste synk
+function addSellerName(n, track){
+  n = clean(n);
+  if (!n) return "";
+  const hit = state.sellers.find(x => x.toLowerCase() === n.toLowerCase());
+  if (hit) return hit;
+  state.sellers.push(n); state.sellers.sort(byName);
+  if (track) state.pend.sellers.push(n);
+  return n;
+}
+function addProductRecord(name, price, track){
+  name = clean(name);
+  if (!name) return "";
+  price = Math.max(0, Number(price) || 0);
+  const hit = state.products.find(p => p.name.toLowerCase() === name.toLowerCase());
+  if (hit) { if (!hit.normalPrice && price > 0) hit.normalPrice = price; return hit.name; }
+  state.products.push({ name, normalPrice: price });
+  state.products.sort((a, b) => byName(a.name, b.name));
+  if (track) state.pend.products.push({ name, normalPrice: price });
+  return name;
+}
+
+function collectOld(){
+  const out = { sales: [], products: [], sellers: [] };
+  ["clubSales","club_sales"].forEach(k => out.sales.push(...parseArr(readLS(k))));
+  ["clubProducts","club_products"].forEach(k => out.products.push(...parseArr(readLS(k))));
+  out.sellers.push(...parseArr(readLS("club_sellers")));
+  return out;
+}
+
+function load(){
+  const raw = readLS(KEY);
+  if (raw) {
+    try {
+      const d = JSON.parse(raw);
+      const pd = d.pend || {};
+      state = {
+        sales: [], sellers: Array.isArray(d.sellers) ? d.sellers.map(clean).filter(Boolean) : [],
+        products: Array.isArray(d.products) && d.products.length ? d.products.filter(p => p && clean(p.name)).map(p => ({ name: clean(p.name), normalPrice: Math.max(0, Number(p.normalPrice) || 0) })) : DEFAULT_PRODUCTS.map(p => ({...p})),
+        pend: {
+          sellers: Array.isArray(pd.sellers) ? pd.sellers.map(clean).filter(Boolean) : [],
+          products: Array.isArray(pd.products) ? pd.products.filter(p => p && clean(p.name)).map(p => ({ name: clean(p.name), normalPrice: Math.max(0, Number(p.normalPrice) || 0) })) : []
+        }
+      };
+      mergeIn({ sales: d.sales || [] }, undefined, true);
+      return "";
+    } catch(e) {
+      loadedOk = false;
+      writeLS(KEY + "_uleselig_" + Date.now(), raw);   // behold rådata, så ingenting går tapt
+      return "Lagrede data kunne ikke leses. En kopi er beholdt i nettleseren. Importer en sikkerhetskopi hvis du har en.";
+    }
+  }
+  // Første start med versjon 3: hent det som finnes fra tidligere prototyper (originalene røres ikke)
+  const old = collectOld();
+  if (old.sales.length || old.products.length || old.sellers.length) {
+    const r = mergeIn(old, false);
+    save();
+    return r.added ? "Hentet " + r.added + " salg fra tidligere versjon." : "";
+  }
+  return "";
+}
+
+/* ---------- Visning ---------- */
+function renderPill(){
+  const p = $("storagePill");
+  const n = state.sales.length, pending = state.sales.filter(s => !s.synced).length;
+  const listsWaiting = state.pend.sellers.length + state.pend.products.length > 0;
+  if (!storageOk) { p.textContent = "Lagring blokkert"; p.className = "pill bad"; }
+  else if (!cfg.url) { p.textContent = n + " salg · bare på denne telefonen"; p.className = "pill warn"; }
+  else if (syncing) { p.textContent = "Synker …"; p.className = "pill"; }
+  else if (syncError) { p.textContent = pending ? "Offline · " + pending + " venter" : "Offline"; p.className = "pill warn"; }
+  else if (pending) { p.textContent = pending + " venter på synk"; p.className = "pill warn"; }
+  else if (listsWaiting) { p.textContent = "Endringer venter på synk"; p.className = "pill warn"; }
+  else { p.textContent = "Synkronisert · " + n + " salg"; p.className = "pill"; }
+
+  const st = $("sheetStatus");
+  if (!cfg.url) st.textContent = "Ikke koblet til. Salg lagres bare på denne telefonen, og sletting er låst.";
+  else if (syncError) st.textContent = "Koblet til, men siste synk feilet: " + syncError + ". Salg lagres her og sendes når det er nett igjen.";
+  else st.textContent = "Koblet til Google Sheet" + (lastSync ? ". Sist synkronisert " + new Date(lastSync).toLocaleTimeString("no-NO", { hour: "2-digit", minute: "2-digit" }) : "") + ".";
+  $("sheetConnect").hidden = !!cfg.url;
+  $("sheetConnected").hidden = !cfg.url;
+}
+
+function renderSellerSelect(sel){
+  const el = $("sellerSelect");
+  const keep = sel !== undefined ? sel : el.value;
+  el.innerHTML = '<option value="">Velg selger</option>' +
+    state.sellers.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join("") +
+    '<option value="__new__">＋ Legg til ny selger</option>';
+  el.value = [...el.options].some(o => o.value === keep) ? keep : "";
+  $("newSellerBox").hidden = el.value !== "__new__";
+}
+
+function renderProductSelect(sel){
+  const el = $("productSelect");
+  const keep = sel !== undefined ? sel : el.value;
+  el.innerHTML = '<option value="">Velg produkt</option>' +
+    state.products.map(p => '<option value="' + esc(p.name) + '">' + esc(p.name) + (p.normalPrice ? " (" + kr(p.normalPrice) + ")" : "") + '</option>').join("") +
+    '<option value="__new__">＋ Legg til nytt produkt</option>';
+  el.value = [...el.options].some(o => o.value === keep) ? keep : "";
+  $("newProductBox").hidden = el.value !== "__new__";
+}
+
+function renderPayGroup(){
+  $("payGroup").innerHTML = PAYMENTS.map((p, i) =>
+    '<label class="chip"><input type="radio" name="pay" value="' + p + '"' + (i === 0 ? " checked" : "") + '><span>' + p + '</span></label>').join("");
+}
+const selectedPayment = () => (document.querySelector('input[name="pay"]:checked') || {}).value || "Vipps";
+
+function sameDay(ts){
+  const a = new Date(ts), b = new Date();
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+const inPeriod = s => $("period").value === "alle" || (s.ts && sameDay(s.ts));
+const dateText = s => s.ts ? new Date(s.ts).toLocaleString("no-NO", { dateStyle: "short", timeStyle: "short" }) : (s.date || "");
+
+function renderSummary(){
+  const v = state.sales.filter(inPeriod);
+  let sold = 0, normal = 0, disc = 0, qty = 0;
+  const pay = { Vipps: 0, Kontant: 0, Bank: 0, Annet: 0 };
+  const sellers = new Map(), prods = new Map();
+  for (const s of v) {
+    sold += s.soldTotal; normal += s.normalTotal; disc += s.discount; qty += s.qty;
+    const pk = payKey(s.payment);
+    pay[pk] += s.soldTotal;
+    let r = sellers.get(s.seller);
+    if (!r) { r = { n: 0, q: 0, Vipps: 0, Kontant: 0, Bank: 0, Annet: 0, sum: 0 }; sellers.set(s.seller, r); }
+    r.n++; r.q += s.qty; r[pk] += s.soldTotal; r.sum += s.soldTotal;
+    let p = prods.get(s.product);
+    if (!p) { p = { q: 0, sum: 0 }; prods.set(s.product, p); }
+    p.q += s.qty; p.sum += s.soldTotal;
+  }
+  $("sumInfo").textContent = v.length + (v.length === 1 ? " salg" : " salg") + ($("period").value === "idag" ? " i dag" : " totalt");
+  $("sumBoxes").innerHTML =
+    '<div class="box hl">Salg totalt<strong>' + kr(sold) + '</strong></div>' +
+    '<div class="box">Normalpris totalt<strong>' + kr(normal) + '</strong></div>' +
+    '<div class="box">Rabatt gitt<strong>' + kr(disc) + '</strong></div>' +
+    '<div class="box">Antall varer<strong>' + qty + '</strong></div>';
+  $("payBoxes").innerHTML = PAYMENTS.map(p =>
+    '<div class="box' + (p === "Kontant" ? " hl" : "") + '">' + (p === "Kontant" ? "Kontant (skal ligge i kassa)" : p) + '<strong>' + kr(pay[p]) + '</strong></div>').join("");
+
+  const sRows = [...sellers.entries()].sort((a, b) => byName(a[0], b[0]));
+  $("sellerTable").innerHTML = sRows.length
+    ? '<thead><tr><th>Selger (kr)</th><th class="num">Varer</th>' + PAYMENTS.map(p => '<th class="num">' + p + '</th>').join("") + '<th class="num">Sum</th></tr></thead><tbody>' +
+      sRows.map(([n, r]) => '<tr><td>' + esc(n) + '</td><td class="num">' + r.q + '</td>' + PAYMENTS.map(p => '<td class="num">' + nf(r[p]) + '</td>').join("") + '<td class="num"><strong>' + nf(r.sum) + '</strong></td></tr>').join("") +
+      '</tbody><tfoot><tr><td>Totalt</td><td class="num">' + qty + '</td>' + PAYMENTS.map(p => '<td class="num">' + nf(pay[p]) + '</td>').join("") + '<td class="num">' + nf(sold) + '</td></tr></tfoot>'
+    : '<tbody><tr><td class="sub">Ingen salg å vise.</td></tr></tbody>';
+
+  const pRows = [...prods.entries()].sort((a, b) => byName(a[0], b[0]));
+  $("productTable").innerHTML = pRows.length
+    ? '<thead><tr><th>Produkt</th><th class="num">Antall</th><th class="num">Sum</th></tr></thead><tbody>' +
+      pRows.map(([n, r]) => '<tr><td>' + esc(n) + '</td><td class="num">' + r.q + '</td><td class="num">' + kr(r.sum) + '</td></tr>').join("") + '</tbody>'
+    : '<tbody><tr><td class="sub">Ingen salg å vise.</td></tr></tbody>';
+}
+
+function renderSales(){
+  const v = state.sales.filter(inPeriod);
+  $("emptyList").hidden = v.length > 0;
+  $("salesBody").innerHTML = v.map(s =>
+    '<div class="sale"><div class="main">' + s.qty + ' × ' + esc(s.product) + '</div>' +
+    '<div class="amt">' + kr(s.soldTotal) + '</div>' +
+    '<div class="meta">' + esc(s.seller) + ' · ' + esc(s.payment) + ' · ' + esc(dateText(s)) + '</div>' +
+    (s.discount !== 0 && s.normalTotal !== s.soldTotal ? '<div class="extra">Normalpris ' + kr(s.normalTotal) + ' · ' + (s.discount > 0 ? 'rabatt ' + kr(s.discount) : 'over normalpris ' + kr(-s.discount)) + '</div>' : '') +
+    (s.note ? '<div class="note">' + esc(s.note) + '</div>' : '') +
+    (canOwn(s) ? '<div class="extra">Du kan endre eller slette dette salget i ' + minsLeft(s) + ' min til.</div>' : '') +
+    '<div class="acts">' +
+    (canOwn(s) ? '<button type="button" class="secondary small" data-edit="' + esc(s.id) + '" aria-label="Rediger salget av ' + esc(s.product) + '">Rediger</button>' : '') +
+    '<button type="button" class="danger small" data-del="' + esc(s.id) + '" aria-label="Slett salget av ' + esc(s.product) + '">Slett</button></div></div>').join("");
+}
+
+function renderRegistry(){
+  $("productList").innerHTML = state.products.map((p, i) =>
+    '<div class="list-row"><span class="name">' + esc(p.name) + '</span>' +
+    '<input type="number" inputmode="numeric" min="0" step="1" value="' + (p.normalPrice || "") + '" placeholder="kr" aria-label="Standardpris for ' + esc(p.name) + '" data-price="' + i + '">' +
+    '<button type="button" class="secondary small" data-saveprice="' + i + '">Lagre</button>' +
+    '<button type="button" class="danger small" data-rmprod="' + i + '">Fjern</button></div>').join("") || '<p class="sub">Ingen produkter.</p>';
+  $("sellerList").innerHTML = state.sellers.map((n, i) =>
+    '<div class="list-row"><span class="name">' + esc(n) + '</span><button type="button" class="danger small" data-rmsell="' + i + '">Fjern</button></div>').join("") || '<p class="sub">Ingen selgere ennå.</p>';
+}
+
+function renderAll(keepSeller, keepProduct){
+  renderSellerSelect(keepSeller);
+  renderProductSelect(keepProduct);
+  renderSummary(); renderSales(); renderRegistry(); renderPill();
+}
+
+/* ---------- Meldinger ---------- */
+function formMsg(text){ const m = $("formMsg"); m.textContent = text || ""; m.hidden = !text; }
+function bakMsg(text, kind){ const m = $("bakMsg"); m.textContent = text || ""; m.className = "msg" + (kind ? " " + kind : ""); m.hidden = !text; }
+function toast(text, actionLabel, fn){
+  $("toastText").textContent = text;
+  const b = $("toastAction");
+  b.hidden = !fn; undoFn = fn || null;
+  if (actionLabel) b.textContent = actionLabel;
+  $("toast").hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $("toast").hidden = true; undoFn = null; }, fn ? 9000 : 4000);
+}
+
+/* ---------- Skjema ---------- */
+function productPrice(name){ const p = state.products.find(x => x.name === name); return p ? p.normalPrice : 0; }
+
+function productChanged(){
+  const v = $("productSelect").value;
+  $("newProductBox").hidden = v !== "__new__";
+  if (v === "__new__") { $("normalPrice").value = ""; $("newProduct").focus(); }
+  else if (v) { const pr = productPrice(v); $("normalPrice").value = pr > 0 ? pr : ""; }
+  updatePlaceholder();
+}
+function sellerChanged(){
+  const v = $("sellerSelect").value;
+  $("newSellerBox").hidden = v !== "__new__";
+  if (v === "__new__") $("newSeller").focus();
+  else if (v) writeLS(KEY + "_selger", v);   // husk hvem som selger på denne telefonen
+}
+function updatePlaceholder(){
+  const q = Number($("qty").value) || 0, np = Number($("normalPrice").value) || 0;
+  $("soldTotal").placeholder = (q > 0 && np > 0) ? String(q * np) : "Beløp";
+}
+
+function fail(text, focusId){ formMsg(text); if (focusId) $(focusId).focus(); }
+
+function addSale(ev){
+  ev.preventDefault();
+  formMsg("");
+  let seller = $("sellerSelect").value === "__new__" ? $("newSeller").value : $("sellerSelect").value;
+  let product = $("productSelect").value === "__new__" ? $("newProduct").value : $("productSelect").value;
+  seller = clean(seller); product = clean(product);
+  if (!seller) return fail("Velg eller skriv inn selger.", $("sellerSelect").value === "__new__" ? "newSeller" : "sellerSelect");
+  if (!product) return fail("Velg eller skriv inn produkt.", $("productSelect").value === "__new__" ? "newProduct" : "productSelect");
+  const qty = Number($("qty").value);
+  if (!Number.isInteger(qty) || qty < 1) return fail("Antall må være et helt tall på minst 1.", "qty");
+  const npRaw = $("normalPrice").value.trim();
+  const np = npRaw === "" ? 0 : Number(npRaw);
+  if (!(np >= 0)) return fail("Normalpris kan ikke være negativ.", "normalPrice");
+  const soldRaw = $("soldTotal").value.trim();
+  if (soldRaw === "") return fail("Skriv inn beløpet kunden betalte. Skriv 0 hvis varen er gitt bort.", "soldTotal");
+  const sold = Number(soldRaw);
+  if (!(sold >= 0)) return fail("Salgsbeløpet kan ikke være negativt.", "soldTotal");
+
+  // Uten normalpris finnes det ingen rabatt å regne ut
+  const normalTotal = np > 0 ? qty * np : sold;
+  const sale = {
+    id: uid(), ts: Date.now(), date: "", seller, product, qty, normalPrice: np,
+    normalTotal, soldTotal: sold, discount: normalTotal - sold,
+    payment: selectedPayment(), note: $("note").value.trim(), synced: false, mine: true
+  };
+  seller = addSellerName(seller, true);
+  product = addProductRecord(product, np, true);
+  state.sales.unshift(sale);
+  const ok = save();
+  scheduleSync();
+
+  $("soldTotal").value = ""; $("note").value = ""; $("newSeller").value = ""; $("newProduct").value = ""; $("qty").value = 1;
+  writeLS(KEY + "_selger", seller);
+  renderAll(seller, product);
+  const pr = productPrice(product); $("normalPrice").value = pr > 0 ? pr : "";
+  updatePlaceholder();
+  if (!ok) formMsg("Salget er registrert, men nettleseren lot ikke lagre. Last ned sikkerhetskopi før du lukker siden.");
+  else toast("Lagret: " + qty + " × " + product + ", " + kr(sold) + " (" + sale.payment + ")");
+}
+
+const NEEDS_SHEET = "Sletting krever tilkobling til Google Sheet og administratorpassord. Koble til under «Google Sheet».";
+const whoAmI = () => { const v = $("sellerSelect").value; return v && v !== "__new__" ? v : ""; };
+
+async function deleteSale(id){
+  const s = state.sales.find(x => x.id === id);
+  if (!s) return;
+  if (!cfg.url) { toast(NEEDS_SHEET); return; }
+  const what = s.qty + " × " + s.product + ", " + kr(s.soldTotal) + " (" + s.seller + ", " + s.payment + ")";
+  const r = canOwn(s)
+    ? await adminAction("Slette dette salget?", what + ". Du kan slette dine egne salg uten passord i " + minsLeft(s) + " min til.",
+        () => ({ action: "ownDelete", id, device: deviceToken, by: s.seller }), { own: true, pre: () => ensureOnServer(s) })
+    : await adminAction("Slett salg", what, () => ({ action: "delete", ids: [id], by: whoAmI() }));
+  if (!r) return;
+  state.sales = state.sales.filter(x => x.id !== id);
+  save(); renderAll();
+  toast("Salget er slettet. Raden står igjen i Google Sheet, merket som slettet.");
+}
+
+/* ---------- Eksport / import ---------- */
+function download(name, text, mime){
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+const stamp = () => new Date().toLocaleDateString("sv-SE");
+const csvCell = v => {
+  let s = String(v ?? "");
+  if (typeof v === "string" && /^[=+\-@\t\r]/.test(s)) s = "'" + s;   // hindrer formler i Excel
+  return '"' + s.replace(/"/g, '""') + '"';
+};
+function exportCSV(){
+  const head = ["Dato","Tid","Selger","Produkt","Antall","Normalpris per stk","Normal totalt","Solgt totalt","Rabatt","Betaling","Kommentar","ID"];
+  const rows = state.sales.map(s => {
+    const d = s.ts ? new Date(s.ts) : null;
+    return [d ? d.toLocaleDateString("sv-SE") : s.date, d ? d.toLocaleTimeString("no-NO", { hour: "2-digit", minute: "2-digit" }) : "",
+      s.seller, s.product, s.qty, s.normalPrice, s.normalTotal, s.soldTotal, s.discount, s.payment, s.note, s.id];
+  });
+  const csv = "﻿" + [head, ...rows].map(r => r.map(csvCell).join(";")).join("\r\n");
+  download("klubbsalg-" + stamp() + ".csv", csv, "text/csv;charset=utf-8");
+  bakMsg("CSV med " + rows.length + " salg er lastet ned.", "ok");
+}
+const backupText = () => JSON.stringify({ app: "klubbsalg", version: 3, exported: new Date().toISOString(), sales: state.sales, sellers: state.sellers, products: state.products }, null, 1);
+function exportJSON(){
+  download("klubbsalg-sikkerhetskopi-" + stamp() + ".json", backupText(), "application/json");
+  bakMsg("Sikkerhetskopi med " + state.sales.length + " salg er lastet ned. Hvis ingenting skjedde, bruk «Kopier sikkerhetskopi som tekst».", "ok");
+}
+async function copyJSON(){
+  try { await navigator.clipboard.writeText(backupText()); bakMsg("Sikkerhetskopien er kopiert. Lim den inn i en notat eller melding til deg selv.", "ok"); }
+  catch(e){ bakMsg("Nettleseren tillot ikke kopiering. Bruk «Last ned sikkerhetskopi» i stedet.", "err"); }
+}
+function afterImport(r, kilde){
+  save(); renderAll(); scheduleSync();
+  bakMsg(kilde + ": " + r.added + " nye salg lagt til, " + r.skipped + " fantes fra før" + (r.bad ? ", " + r.bad + " kunne ikke leses" : "") + ".", r.added || !r.bad ? "ok" : "err");
+}
+function importFile(file){
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      const d = JSON.parse(String(fr.result));
+      if (!d || !Array.isArray(d.sales)) throw new Error("ikke en sikkerhetskopi");
+      afterImport(mergeIn(d, false), "Import");
+    } catch(e){ bakMsg("Filen kunne ikke leses som sikkerhetskopi fra Klubbsalg.", "err"); }
+    $("importFile").value = "";
+  };
+  fr.onerror = () => bakMsg("Filen kunne ikke åpnes.", "err");
+  fr.readAsText(file);
+}
+function importOld(){
+  const old = collectOld();
+  if (!old.sales.length && !old.products.length && !old.sellers.length) { bakMsg("Fant ingen data fra eldre versjoner i denne nettleseren.", "err"); return; }
+  afterImport(mergeIn(old, false), "Eldre versjoner");
+}
+async function clearAll(){
+  if (!state.sales.length) { bakMsg("Det er ingen salg å slette.", "err"); return; }
+  if (!cfg.url) { bakMsg(NEEDS_SHEET, "err"); return; }
+  const r = await adminAction("Slett alle salg", "Alle salg i Google Sheet merkes som slettet, og fjernes fra denne telefonen. Last helst ned sikkerhetskopi først.",
+    () => ({ action: "deleteAll", by: whoAmI() }));
+  if (!r) return;
+  state.sales = [];
+  save(); renderAll();
+  bakMsg("Alle salg er slettet (" + r.deleted + " rader merket i Google Sheet).", "ok");
+}
+
+/* ---------- Vedlikehold av lister ---------- */
+// Med Google Sheet koblet til er listene felles. Da krever endring og fjerning administratorpassord.
+async function registryClick(e){
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.dataset.saveprice !== undefined) {
+    const p = state.products[Number(t.dataset.saveprice)]; if (!p) return;
+    const price = Math.max(0, Number(document.querySelector('input[data-price="' + t.dataset.saveprice + '"]').value) || 0);
+    if (cfg.url) {
+      const r = await adminAction("Endre standardpris", p.name + ": " + kr(price), () => ({ action: "setPrice", name: p.name, price }));
+      if (!r) return;
+    }
+    p.normalPrice = price; save(); renderAll(); toast("Pris lagret."); scheduleSync();
+  } else if (t.dataset.rmprod !== undefined) {
+    const i = Number(t.dataset.rmprod), p = state.products[i]; if (!p) return;
+    if (cfg.url) {
+      const r = await adminAction("Fjern produkt", p.name + " fjernes fra valglisten til alle selgere. Registrerte salg beholdes.", () => ({ action: "removeProduct", name: p.name }));
+      if (!r) return;
+      state.products = state.products.filter(x => x.name !== p.name);
+      state.pend.products = state.pend.products.filter(x => x.name !== p.name);
+      save(); renderAll(); toast(p.name + " er fjernet fra listen."); scheduleSync();
+      return;
+    }
+    state.products.splice(i, 1);
+    save(); renderAll(); toast(p.name + " er fjernet fra listen.", "Angre", () => { state.products.splice(i, 0, p); save(); renderAll(); });
+  } else if (t.dataset.rmsell !== undefined) {
+    const i = Number(t.dataset.rmsell), n = state.sellers[i]; if (n === undefined) return;
+    if (cfg.url) {
+      const r = await adminAction("Fjern selger", n + " fjernes fra valglisten til alle selgere. Registrerte salg beholdes.", () => ({ action: "removeSeller", name: n }));
+      if (!r) return;
+      state.sellers = state.sellers.filter(x => x !== n);
+      state.pend.sellers = state.pend.sellers.filter(x => x !== n);
+      save(); renderAll(); toast(n + " er fjernet fra listen."); scheduleSync();
+      return;
+    }
+    state.sellers.splice(i, 1);
+    save(); renderAll(); toast(n + " er fjernet fra listen.", "Angre", () => { state.sellers.splice(i, 0, n); save(); renderAll(); });
+  }
+}
+
+/* ---------- Google Sheet: nettverk og synk ---------- */
+async function net(method, payload){
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 20000);
+  try {
+    const url = method === "GET" ? cfg.url + "?" + new URLSearchParams({ action: payload, _: String(Date.now()) }) : cfg.url;
+    // text/plain unngår forhåndssjekk (CORS preflight), som Apps Script ikke svarer på
+    const opt = method === "GET" ? { signal: ctl.signal } : { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload), signal: ctl.signal };
+    const text = await (await fetch(url, opt)).text();
+    try { return JSON.parse(text); }
+    catch(e){ throw new Error("Uventet svar fra Google Sheet. Er nettappen distribuert med tilgang for «Alle»?"); }
+  } catch(e){
+    if (e && e.name === "AbortError") throw new Error("Ingen svar fra Google Sheet (tidsavbrudd)");
+    throw e;
+  } finally { clearTimeout(timer); }
+}
+const getJ = action => net("GET", action);
+const postJ = body => net("POST", body);
+const errText = e => (e && e.message && !/^(Failed to fetch|Load failed)$|NetworkError/.test(e.message)) ? e.message : "ingen nettforbindelse";
+const wire = s => ({ id: s.id, ts: s.ts, seller: s.seller, product: s.product, qty: s.qty, normalPrice: s.normalPrice,
+  normalTotal: s.normalTotal, soldTotal: s.soldTotal, discount: s.discount, payment: s.payment, note: s.note });
+
+function scheduleSync(){ if (!cfg.url) return; clearTimeout(syncSoon); syncSoon = setTimeout(syncNow, 400); }
+
+// Serveren er fasit for slettinger og valglister. Lokale salg som mangler på serveren beholdes (sikkerhet mot et tomt ark).
+function applyServer(all){
+  const del = new Set((all.deletedIds || []).map(String));
+  state.sales = state.sales.filter(s => !del.has(s.id));
+  if (Number(all.editWindowMin) > 0) editWinMin = Number(all.editWindowMin);
+  // Rettelser gjort av selger, administrator eller direkte i arket følger med til alle telefoner
+  const byId = new Map((all.sales || []).map(x => [String(x.id), x]));
+  for (const s of state.sales) {
+    const c = s.synced ? cleanSale(byId.get(s.id)) : null;
+    if (c) Object.assign(s, { product: c.product, qty: c.qty, normalPrice: c.normalPrice, normalTotal: c.normalTotal, soldTotal: c.soldTotal, discount: c.discount, payment: c.payment, note: c.note });
+  }
+  mergeIn({ sales: all.sales || [] }, true, true);
+  let needsPush = false;
+  const srvSellers = (all.sellers || []).map(clean).filter(Boolean);
+  const srvProducts = (all.products || []).map(p => ({ name: clean(p.name), normalPrice: Math.max(0, Number(p.normalPrice) || 0) })).filter(p => p.name);
+  if (srvSellers.length) state.sellers = srvSellers.sort(byName);
+  else if (state.sellers.length) { state.pend.sellers = state.sellers.slice(); needsPush = true; }
+  if (srvProducts.length) state.products = srvProducts.sort((a, b) => byName(a.name, b.name));
+  else if (state.products.length) { state.pend.products = state.products.map(p => ({...p})); needsPush = true; }
+  state.pend.sellers.forEach(n => addSellerName(n));
+  state.pend.products.forEach(p => addProductRecord(p.name, p.normalPrice));
+  return needsPush;
+}
+
+async function syncNow(){
+  if (!cfg.url) return;
+  if (syncing) { syncAgain = true; return; }
+  syncing = true; syncError = ""; renderPill();
+  try {
+    const pending = state.sales.filter(s => !s.synced);
+    const sent = { sellers: state.pend.sellers.slice(), products: state.pend.products.map(p => ({...p})) };
+    const chunks = [];
+    for (let i = 0; i < pending.length; i += 100) chunks.push(pending.slice(i, i + 100));
+    if (!chunks.length && (sent.sellers.length || sent.products.length)) chunks.push([]);
+    for (let k = 0; k < chunks.length; k++) {
+      const r = await postJ({ action: "push", device: deviceToken, sales: chunks[k].map(wire), sellers: k === 0 ? sent.sellers : [], products: k === 0 ? sent.products : [] });
+      if (!r.ok) throw new Error(r.detail || r.error || "sending feilet");
+      const ids = new Set(chunks[k].map(s => s.id));
+      state.sales.forEach(s => { if (ids.has(s.id)) s.synced = true; });
+      if (k === 0) {
+        const sn = new Set(sent.sellers.map(x => x.toLowerCase())), pn = new Set(sent.products.map(p => p.name.toLowerCase()));
+        state.pend.sellers = state.pend.sellers.filter(x => !sn.has(x.toLowerCase()));
+        state.pend.products = state.pend.products.filter(p => !pn.has(p.name.toLowerCase()));
+      }
+    }
+    const all = await getJ("all");
+    if (!all.ok) throw new Error(all.detail || all.error || "lesing feilet");
+    if (applyServer(all)) syncAgain = true;
+    lastSync = Date.now();
+  } catch(e){
+    syncError = errText(e);
+  } finally {
+    syncing = false;
+    save(); renderAll();
+    if (syncAgain) { syncAgain = false; scheduleSync(); }
+  }
+}
+
+/* ---------- Passorddialog for sletting og andre administratorhandlinger ---------- */
+function adminError(r){
+  switch (r.error) {
+    case "feil_passord": return "Feil passord. " + r.attemptsLeft + " forsøk igjen før det låses.";
+    case "last": return "For mange feil forsøk. Handlingen er låst i ca. 10 minutter.";
+    case "passord_ikke_satt": return "Administratorpassord er ikke satt i Google Sheet-oppsettet (skriptegenskapen ADMIN_PASSWORD).";
+    case "finnes_ikke": return "Finnes ikke i Google Sheet ennå. Trykk «Synk nå» og prøv igjen.";
+    default: return "Noe gikk galt (" + (r.detail || r.error || "ukjent") + ").";
+  }
+}
+
+function ownError(r){
+  switch (r.error) {
+    case "utlopt": return "Tiden for å endre selv (" + (r.minutes || editWinMin) + " min) er ute. Be en administrator om hjelp.";
+    case "ikke_din": return "Dette salget ble registrert på en annen telefon. Be en administrator om hjelp.";
+    case "finnes_ikke": return "Salget finnes ikke (lenger) i Google Sheet.";
+    case "ugyldig": return "Verdiene er ikke gyldige.";
+    default: return "Noe gikk galt (" + (r.detail || r.error || "ukjent") + ").";
+  }
+}
+
+// Salget må være hos serveren før det kan endres eller slettes der
+async function ensureOnServer(s){
+  if (s.synced) return;
+  await syncNow();
+  const cur = state.sales.find(x => x.id === s.id);
+  if (!cur || !cur.synced) { const e = new Error("ikke sendt"); e.userMessage = "Salget er ikke sendt til Google Sheet ennå. Prøv igjen når du har nett."; throw e; }
+}
+
+// Passordet sjekkes av Google Sheet-skriptet, aldri i appen. Resolver med serversvaret, eller null hvis brukeren avbryter.
+// opts.own: selgerens egne salg innenfor tidsgrensen. Da trengs ikke passord, men serveren sjekker eierskap og tid.
+function adminAction(title, detail, makeBody, opts){
+  opts = opts || {};
+  return new Promise(resolve => {
+    const modal = $("pwModal"), input = $("pwInput"), msg = $("pwMsg"), ok = $("pwOk");
+    const show = t => { msg.textContent = t; msg.hidden = false; };
+    const close = v => {
+      modal.hidden = true; input.value = "";
+      $("pwForm").onsubmit = null; $("pwCancel").onclick = null; document.removeEventListener("keydown", onKey);
+      resolve(v);
+    };
+    const onKey = e => { if (e.key === "Escape") close(null); };
+    $("pwTitle").textContent = title; $("pwDetail").textContent = detail;
+    $("pwField").hidden = !!opts.own; ok.textContent = opts.own ? "Slett" : "Bekreft";
+    input.value = ""; msg.hidden = true; ok.disabled = false; modal.hidden = false;
+    (opts.own ? $("pwCancel") : input).focus();   // ved egen sletting ligger fokus på Avbryt, så Enter ikke sletter ved et uhell
+    document.addEventListener("keydown", onKey);
+    $("pwCancel").onclick = () => close(null);
+    $("pwForm").onsubmit = async ev => {
+      ev.preventDefault();
+      if (!opts.own && !input.value) { show("Skriv inn passordet."); return; }
+      ok.disabled = true;
+      try {
+        if (opts.pre) await opts.pre();
+        const r = await postJ(opts.own ? makeBody() : Object.assign({ password: input.value }, makeBody()));
+        if (r.ok) { close(r); scheduleSync(); return; }
+        show(opts.own ? ownError(r) : adminError(r));
+      } catch(e){ show(e.userMessage || "Fikk ikke kontakt med Google Sheet (" + errText(e) + "). Dette krever internett."); }
+      ok.disabled = false; if (!opts.own) input.select();
+    };
+  });
+}
+
+/* ---------- Rediger eget salg ---------- */
+let editingId = null;
+function openEdit(id){
+  const s = state.sales.find(x => x.id === id);
+  if (!s || !canOwn(s)) { renderSales(); toast("Tiden for å endre selv er ute."); return; }
+  editingId = id;
+  const names = state.products.map(p => p.name);
+  if (!names.includes(s.product)) names.push(s.product);
+  $("eProduct").innerHTML = names.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join("");
+  $("eProduct").value = s.product; $("eQty").value = s.qty; $("ePrice").value = s.normalPrice || "";
+  $("eSold").value = s.soldTotal; $("ePay").value = PAYMENTS.includes(s.payment) ? s.payment : "Annet"; $("eNote").value = s.note;
+  $("eInfo").textContent = s.seller + " · " + dateText(s) + " · kan endres i " + minsLeft(s) + " min til";
+  $("eMsg").hidden = true; $("eSave").disabled = false; $("editModal").hidden = false; $("eQty").focus();
+}
+function closeEdit(){ $("editModal").hidden = true; editingId = null; }
+async function saveEdit(ev){
+  ev.preventDefault();
+  const s = state.sales.find(x => x.id === editingId);
+  if (!s) { closeEdit(); return; }
+  const msg = t => { $("eMsg").textContent = t; $("eMsg").hidden = false; };
+  const qty = Number($("eQty").value);
+  if (!Number.isInteger(qty) || qty < 1) return msg("Antall må være et helt tall på minst 1.");
+  const npRaw = $("ePrice").value.trim(), np = npRaw === "" ? 0 : Number(npRaw);
+  if (!(np >= 0)) return msg("Normalpris kan ikke være negativ.");
+  const soldRaw = $("eSold").value.trim();
+  if (soldRaw === "") return msg("Skriv inn beløpet kunden betalte (0 hvis gitt bort).");
+  const sold = Number(soldRaw);
+  if (!(sold >= 0)) return msg("Salgsbeløpet kan ikke være negativt.");
+  $("eMsg").hidden = true; $("eSave").disabled = true;
+  try {
+    await ensureOnServer(s);
+    const r = await postJ({ action: "ownEdit", id: s.id, device: deviceToken, product: $("eProduct").value, qty, normalPrice: np, soldTotal: sold, payment: $("ePay").value, note: $("eNote").value.trim() });
+    if (r.ok) { Object.assign(s, r.sale, { synced: true }); save(); renderAll(); closeEdit(); toast("Endringen er lagret."); scheduleSync(); return; }
+    msg(ownError(r));
+  } catch(e){ msg(e.userMessage || "Fikk ikke kontakt med Google Sheet (" + errText(e) + "). Endring krever internett."); }
+  $("eSave").disabled = false;
+}
+
+/* ---------- Google Sheet: tilkobling ---------- */
+function sheetMsg(text, kind){ const m = $("sheetMsg"); m.textContent = text || ""; m.className = "msg" + (kind ? " " + kind : ""); m.hidden = !text; }
+
+async function connect(url){
+  url = clean(url);
+  if (!SHEET_URL_RE.test(url)) { sheetMsg("Adressen ser ikke riktig ut. Den skal starte med https://script.google.com/macros/s/ og slutte på /exec.", "err"); return false; }
+  const prev = cfg.url; cfg.url = url;
+  try {
+    const ping = await getJ("ping");
+    if (!ping || !ping.ok || ping.app !== "klubbsalg") throw new Error("Svaret kom ikke fra Klubbsalg-skriptet");
+  } catch(e){ cfg.url = prev; renderPill(); sheetMsg("Fikk ikke kontakt: " + errText(e) + ".", "err"); return false; }
+  writeLS(SHEET_KEY, url);
+  sheetMsg("", "");
+  $("sheetUrl").value = "";
+  renderPill();
+  syncNow();
+  return true;
+}
+function disconnect(){
+  cfg.url = ""; syncError = "";
+  try { localStorage.removeItem(SHEET_KEY); } catch(e){}
+  renderPill();
+  sheetMsg("Frakoblet. Salgene på telefonen er beholdt, men sletting er låst til du kobler til igjen.", "ok");
+}
+async function shareLink(){
+  const link = location.href.split("#")[0] + "#s=" + encodeURIComponent(cfg.url);
+  const fileNote = location.protocol === "file:" ? " Merk: lenken virker først når appen ligger på en nettadresse." : "";
+  try { await navigator.clipboard.writeText(link); sheetMsg("Delingslenken er kopiert. Selgerne som åpner den blir koblet til automatisk." + fileNote, "ok"); }
+  catch(e){ sheetMsg("Kopier lenken selv: " + link + fileNote, "ok"); }
+}
+function urlFromHash(){
+  const m = /^#s=(.+)$/.exec(location.hash || "");
+  if (!m) return "";
+  try { const u = decodeURIComponent(m[1]); return SHEET_URL_RE.test(u) ? u : ""; } catch(e){ return ""; }
+}
+
+/* ---------- Oppstart ---------- */
+function makeIcon(){
+  try {
+    const c = document.createElement("canvas"); c.width = c.height = 180;
+    const g = c.getContext("2d");
+    g.fillStyle = "#111111"; g.fillRect(0, 0, 180, 180);
+    g.fillStyle = "#b8860b"; g.fillRect(14, 14, 152, 152);
+    g.fillStyle = "#141000"; g.font = "bold 110px -apple-system, Arial, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText("K", 90, 96);
+    const l = document.createElement("link"); l.rel = "apple-touch-icon"; l.href = c.toDataURL("image/png");
+    document.head.appendChild(l);
+  } catch(e){}
+}
+
+function init(){
+  renderPayGroup();
+  const note = load();
+  deviceToken = readLS(DEVICE_KEY) || "";
+  if (!deviceToken) { deviceToken = uid() + uid(); writeLS(DEVICE_KEY, deviceToken); }   // hemmelig kode som bare finnes på denne telefonen
+  const savedUrl = readLS(SHEET_KEY) || "";
+  if (SHEET_URL_RE.test(savedUrl)) cfg.url = savedUrl;
+  const lastSeller = readLS(KEY + "_selger") || "";
+  renderAll(state.sellers.includes(lastSeller) ? lastSeller : "", "");
+  updatePlaceholder();
+  if (note) bakMsg(note, loadedOk ? "ok" : "err");
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch(e){}
+  makeIcon();
+
+  $("saleForm").addEventListener("submit", addSale);
+  $("sellerSelect").addEventListener("change", sellerChanged);
+  $("productSelect").addEventListener("change", productChanged);
+  $("qty").addEventListener("input", updatePlaceholder);
+  $("normalPrice").addEventListener("input", updatePlaceholder);
+  $("fullPriceBtn").addEventListener("click", () => {
+    const q = Number($("qty").value) || 0, np = Number($("normalPrice").value) || 0;
+    if (q > 0 && np > 0) $("soldTotal").value = q * np; else $("normalPrice").focus();
+  });
+  $("period").addEventListener("change", () => { renderSummary(); renderSales(); });
+  $("salesBody").addEventListener("click", e => {
+    const d = e.target.closest("button[data-del]"); if (d) { deleteSale(d.dataset.del); return; }
+    const m = e.target.closest("button[data-edit]"); if (m) openEdit(m.dataset.edit);
+  });
+  $("editForm").addEventListener("submit", saveEdit);
+  $("eCancel").addEventListener("click", closeEdit);
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("editModal").hidden) closeEdit(); });
+  setInterval(() => { if (cfg.url) renderSales(); }, 20000);   // knappene for egne salg forsvinner når tiden er ute
+  $("productList").addEventListener("click", registryClick);
+  $("sellerList").addEventListener("click", registryClick);
+  $("addProductBtn").addEventListener("click", () => {
+    const n = clean($("manualProduct").value);
+    if (!n) { bakMsg("", ""); toast("Skriv inn produktnavn."); return; }
+    addProductRecord(n, $("manualPrice").value, true);
+    save(); $("manualProduct").value = ""; $("manualPrice").value = ""; renderAll(); toast("Produkt lagt til."); scheduleSync();
+  });
+  $("addSellerBtn").addEventListener("click", () => {
+    const n = clean($("manualSeller").value);
+    if (!n) { toast("Skriv inn navn på selger."); return; }
+    addSellerName(n, true); save(); $("manualSeller").value = ""; renderAll(); toast("Selger lagt til."); scheduleSync();
+  });
+  $("csvBtn").addEventListener("click", exportCSV);
+  $("jsonBtn").addEventListener("click", exportJSON);
+  $("copyBtn").addEventListener("click", copyJSON);
+  $("importBtn").addEventListener("click", () => $("importFile").click());
+  $("importFile").addEventListener("change", e => { if (e.target.files[0]) importFile(e.target.files[0]); });
+  $("oldBtn").addEventListener("click", importOld);
+  $("clearBtn").addEventListener("click", clearAll);
+  $("connectBtn").addEventListener("click", async () => {
+    $("connectBtn").disabled = true;
+    await connect($("sheetUrl").value);
+    $("connectBtn").disabled = false;
+  });
+  $("sheetUrl").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("connectBtn").click(); } });
+  $("disconnectBtn").addEventListener("click", disconnect);
+  $("syncBtn").addEventListener("click", async () => { sheetMsg("", ""); await syncNow(); if (!syncError) sheetMsg("Synkronisert.", "ok"); });
+  $("shareBtn").addEventListener("click", shareLink);
+  window.addEventListener("online", () => syncNow());
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncNow(); });
+  setInterval(() => { if (cfg.url && document.visibilityState === "visible") syncNow(); }, 30000);
+
+  // Delingslenke: appen åpnet med #s=<nettapp-URL> kobler seg til automatisk
+  const hashUrl = urlFromHash();
+  if (hashUrl) {
+    try { history.replaceState(null, "", location.pathname + location.search); } catch(e){}
+    if (hashUrl !== cfg.url) connect(hashUrl).then(ok => { if (ok) toast("Koblet til Google Sheet fra delingslenken."); });
+  }
+  if (cfg.url) syncNow();
+  $("toastAction").addEventListener("click", () => { const f = undoFn; $("toast").hidden = true; undoFn = null; if (f) f(); });
+}
+
+init();
+})();
+</script>
+</body>
+</html>
