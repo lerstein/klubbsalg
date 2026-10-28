@@ -124,6 +124,9 @@ textarea{min-height:90px;font-size:13px}
 .list-row .tiny{font-size:12px;color:var(--muted)}
 .tile img{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:6px;margin-bottom:6px;background:#222}
 .thumb{width:36px;height:36px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px}
+.cart{border:1px solid var(--gold);border-radius:12px;padding:10px 12px;margin:12px 0 8px}
+.cartline{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line)}
+.cartline span{min-width:0;overflow-wrap:anywhere}
 .ver{font-size:12px;color:var(--muted);text-align:center;margin:18px 0 6px}
 </style>
 </head>
@@ -187,6 +190,11 @@ textarea{min-height:90px;font-size:13px}
           </div>
         </div>
       </div>
+      <div class="cart" id="cartBox" hidden>
+        <div class="row"><strong class="grow">Handlekurv</strong><button type="button" class="secondary small" id="cartClear">Tøm</button></div>
+        <div id="cartLines"></div>
+      </div>
+      <button type="button" class="secondary" id="cartAddBtn">＋ Legg til i handlekurv (flere varer i ett salg)</button>
       <fieldset>
         <legend>Betaling</legend>
         <div class="pay" id="payGroup"></div>
@@ -440,7 +448,7 @@ function cleanSale(s){
   return {
     id: String(s.id ?? uid()), ts, date: s.date ? String(s.date) : "",
     seller, product, qty, normalPrice, normalTotal, soldTotal, discount,
-    stand: clean(s.stand), size: clean(s.size), cur, rate, local,
+    stand: clean(s.stand), size: clean(s.size), cur, rate, local, order: clean(s.order),
     payment: clean(s.payment) || "Annet", note: String(s.note ?? "").trim(),
     synced: s.synced === true, mine: s.mine === true
   };
@@ -736,7 +744,8 @@ function renderLast(){
   const s = state.sales.find(x => x.mine === true), el = $("lastSale");
   if (!s) { el.hidden = true; return; }
   el.hidden = false;
-  el.textContent = "Sist registrert: " + s.qty + " × " + pname(s) + " · " + kr(s.soldTotal) + " · " + s.payment + " · kl. " + (s.ts ? new Date(s.ts).toLocaleTimeString("no-NO", { hour: "2-digit", minute: "2-digit" }) : "");
+  const grp = s.order ? state.sales.filter(x => x.order === s.order).reverse() : [s];
+  el.textContent = "Sist registrert: " + grp.map(x => x.qty + " × " + pname(x)).join(" + ") + " · " + kr(grp.reduce((t, x) => t + x.soldTotal, 0)) + " · " + s.payment + " · kl. " + (s.ts ? new Date(s.ts).toLocaleTimeString("no-NO", { hour: "2-digit", minute: "2-digit" }) : "");
 }
 function renderStockList(){
   const typed = {};   // det som er skrevet inn men ikke lagret, skal ikke forsvinne når siden oppdateres av en synk
@@ -758,7 +767,7 @@ function renderAll(keepSeller, keepProduct){
   renderProductSelect(keepProduct);
   renderStandSelect();
   renderSummary(); renderSales(); renderRegistry(); renderPill();
-  renderFormExtras();
+  renderFormExtras(); renderCart();
 }
 
 /* ---------- Meldinger ---------- */
@@ -846,10 +855,47 @@ function sellerChanged(){
   if (v === "__new__") $("newSeller").focus();
   else if (v) writeLS(KEY + "_selger", v);   // husk hvem som selger på denne telefonen
 }
+/* Handlekurv: flere varer i ett salg. Hver vare blir sin egen rad i Salg, med felles ordre-id. */
+const CART_KEY = KEY + "_kurv";
+let cart = [];
+try { const c = JSON.parse(readLS(CART_KEY) || "[]"); if (Array.isArray(c)) cart = c.filter(x => x && x.product && x.qty >= 1); } catch(e){}
+const saveCart = () => writeLS(CART_KEY, JSON.stringify(cart));
+function formLine(){      // varen som står i skjemaet akkurat nå, eller null
+  const v = $("productSelect").value;
+  if (!v) return null;
+  const product = clean(v === "__new__" ? $("newProduct").value : v);
+  if (!product) return null;
+  return { product, size: $("sizeSelect").value, qty: Number($("qty").value) || 0, np: Number($("normalPrice").value) || 0 };
+}
+function orderNormal(){   // normalpris for hele salget (kurv + vare i skjemaet)
+  const f = formLine(); let t = 0;
+  for (const l of cart) t += l.qty * l.np;
+  if (f && f.qty > 0) t += f.qty * f.np;
+  return t;
+}
 function updatePlaceholder(){
-  const q = Number($("qty").value) || 0, np = Number($("normalPrice").value) || 0;
-  const r = curStand().rate;
-  $("soldTotal").placeholder = (q > 0 && np > 0) ? String(Math.round(q * np / r * 100) / 100) : "Beløp";
+  const t = orderNormal(), r = curStand().rate;
+  $("soldTotal").placeholder = t > 0 ? String(Math.round(t / r * 100) / 100) : "Beløp";
+}
+function renderCart(){
+  $("cartBox").hidden = cart.length === 0;
+  $("cartLines").innerHTML = cart.map((l, i) => '<div class="cartline"><span>' + l.qty + ' × ' + esc(l.product + (l.size ? " (" + l.size + ")" : "")) + (l.np ? ' · ' + kr(l.qty * l.np) : '') + '</span><button type="button" class="danger small" data-cartrm="' + i + '" aria-label="Fjern fra handlekurv">Fjern</button></div>').join("");
+  $("cartAddBtn").textContent = cart.length ? "＋ Legg til flere varer" : "＋ Legg til i handlekurv (flere varer i ett salg)";
+  updatePlaceholder();
+}
+function cartAdd(){
+  formMsg("");
+  const f = formLine();
+  if (!f) return fail("Velg produkt først.", "productSelect");
+  if (!Number.isInteger(f.qty) || f.qty < 1) return fail("Antall må være et helt tall på minst 1.", "qty");
+  const rec = productRec(f.product);
+  if (rec && (rec.sizes || []).length && !f.size) return fail("Velg størrelse.", "sizeSelect");
+  if (!(f.np >= 0)) return fail("Normalpris kan ikke være negativ.", "normalPrice");
+  cart.push({ product: f.product, size: rec && (rec.sizes || []).length ? f.size : "", qty: f.qty, np: f.np });
+  saveCart();
+  addProductRecord(f.product, f.np, true); save();
+  $("productSelect").value = ""; $("newProduct").value = ""; $("newProductBox").hidden = true; $("qty").value = 1; $("normalPrice").value = "";
+  renderSizeBox(""); renderTiles(); renderStockInfo(); renderCart();
 }
 
 function fail(text, focusId){ formMsg(text); if (focusId) $(focusId).focus(); }
@@ -858,49 +904,65 @@ function addSale(ev){
   ev.preventDefault();
   formMsg("");
   let seller = $("sellerSelect").value === "__new__" ? $("newSeller").value : $("sellerSelect").value;
-  let product = $("productSelect").value === "__new__" ? $("newProduct").value : $("productSelect").value;
-  seller = clean(seller); product = clean(product);
+  seller = clean(seller);
   if (!seller) return fail("Velg eller skriv inn selger.", $("sellerSelect").value === "__new__" ? "newSeller" : "sellerSelect");
-  if (!product) return fail("Velg eller skriv inn produkt.", $("productSelect").value === "__new__" ? "newProduct" : "productSelect");
-  const qty = Number($("qty").value);
-  if (!Number.isInteger(qty) || qty < 1) return fail("Antall må være et helt tall på minst 1.", "qty");
-  const npRaw = $("normalPrice").value.trim();
-  const np = npRaw === "" ? 0 : Number(npRaw);
-  if (!(np >= 0)) return fail("Normalpris kan ikke være negativ.", "normalPrice");
+  // Varer i salget: handlekurven + varen som står i skjemaet
+  const lines = cart.map(l => ({ ...l }));
+  const f = formLine(), formHas = !!f || $("productSelect").value === "__new__";
+  if (!lines.length && !f) return fail("Velg eller skriv inn produkt.", $("productSelect").value === "__new__" ? "newProduct" : "productSelect");
+  if (f) {
+    if (!Number.isInteger(f.qty) || f.qty < 1) return fail("Antall må være et helt tall på minst 1.", "qty");
+    const npRaw = $("normalPrice").value.trim();
+    if (!(f.np >= 0) || (npRaw !== "" && !(Number(npRaw) >= 0))) return fail("Normalpris kan ikke være negativ.", "normalPrice");
+    const rec = productRec(f.product);
+    if (rec && (rec.sizes || []).length && !f.size) return fail("Velg størrelse.", "sizeSelect");
+    lines.push({ product: f.product, size: rec && (rec.sizes || []).length ? f.size : "", qty: f.qty, np: f.np });
+  }
   const soldRaw = $("soldTotal").value.trim();
   if (soldRaw === "") return fail("Skriv inn beløpet kunden betalte. Skriv 0 hvis varen er gitt bort.", "soldTotal");
   const local = Number(soldRaw);
   if (!(local >= 0)) return fail("Salgsbeløpet kan ikke være negativt.", "soldTotal");
   const st = curStand(), sold = st.cur === "NOK" ? local : Math.round(local * st.rate * 100) / 100;
-  const rec = productRec(product), size = $("sizeSelect").value;
-  if (rec && (rec.sizes || []).length && !size) return fail("Velg størrelse.", "sizeSelect");
   if (selectedPayment() === "Vipps" && sold > 0 && st.cur === "NOK" && vippsEnabled() && !ev._vippsOk) {
-    showVipps(qty, product, sold, () => addSale({ preventDefault(){}, _vippsOk: true }));
+    const totQ = lines.reduce((t, l) => t + l.qty, 0);
+    showVipps(totQ, lines.length === 1 ? lines[0].product : "varer i handlekurven", sold, () => addSale({ preventDefault(){}, _vippsOk: true }));
     return;
   }
 
-  // Uten normalpris finnes det ingen rabatt å regne ut
-  const normalTotal = np > 0 ? qty * np : sold;
-  const sale = {
-    id: uid(), ts: Date.now(), date: "", seller, product, qty, normalPrice: np,
-    stand: st.name, size: rec && (rec.sizes || []).length ? size : "", cur: st.cur, rate: st.rate, local,
-    normalTotal, soldTotal: sold, discount: normalTotal - sold,
-    payment: selectedPayment(), note: $("note").value.trim(), synced: false, mine: true
-  };
+  // Fordel beløpet på varene etter normalpris (varer uten pris vektes etter antall). Ett produkt gir uendret oppførsel.
+  const priced = lines.filter(l => l.np > 0), pq = priced.reduce((t, l) => t + l.qty, 0), pn = priced.reduce((t, l) => t + l.qty * l.np, 0);
+  const unit = pq > 0 ? pn / pq : 1;
+  const w = lines.map(l => l.np > 0 ? l.qty * l.np : l.qty * unit), W = w.reduce((t, x) => t + x, 0) || 1;
+  const r2 = x => Math.round(x * 100) / 100;
+  const order = lines.length > 1 ? uid() : "", now = Date.now();
+  let soldLeft = sold, localLeft = local;
+  const made = lines.map((l, i) => {
+    const last = i === lines.length - 1;
+    const si = last ? r2(soldLeft) : r2(sold * w[i] / W), li = last ? r2(localLeft) : r2(local * w[i] / W);
+    soldLeft -= si; localLeft -= li;
+    const normalTotal = l.np > 0 ? l.qty * l.np : si;
+    return {
+      id: uid(), ts: now - (lines.length - 1 - i), date: "", seller, product: l.product, qty: l.qty, normalPrice: l.np,
+      stand: st.name, size: l.size, cur: st.cur, rate: st.rate, local: li, order,
+      normalTotal, soldTotal: si, discount: normalTotal - si,
+      payment: selectedPayment(), note: $("note").value.trim(), synced: false, mine: true
+    };
+  });
   seller = addSellerName(seller, true);
-  product = addProductRecord(product, np, true);
-  state.sales.unshift(sale);
+  made.forEach(sale => { sale.product = addProductRecord(sale.product, sale.normalPrice, true); state.sales.unshift(sale); });
   const ok = save();
   scheduleSync();
 
+  cart = []; saveCart();
+  const lastProduct = made[made.length - 1].product;
   $("soldTotal").value = ""; $("note").value = ""; $("newSeller").value = ""; $("newProduct").value = ""; $("qty").value = 1;
   writeLS(KEY + "_selger", seller);
-  renderAll(seller, product);
-  const pr = productPrice(product); $("normalPrice").value = pr > 0 ? pr : "";
-  updatePlaceholder();
-  const left = stockLeft(product, sale.size);
+  renderAll(seller, formHas ? lastProduct : "");
+  const pr = formHas ? productPrice(lastProduct) : 0; $("normalPrice").value = pr > 0 ? pr : "";
+  renderCart();
+  const warn = made.map(m => ({ m, l: stockLeft(m.product, m.size) })).filter(x => x.l !== null && x.l <= 0);
   if (!ok) formMsg("Salget er registrert, men nettleseren lot ikke lagre. Last ned sikkerhetskopi før du lukker siden.");
-  else toast("Lagret: " + qty + " × " + pname(sale) + ", " + kr(sold) + " (" + sale.payment + ")" + (left !== null && left <= 0 ? ". Obs: lageret viser nå " + left + "." : ""));
+  else toast("Lagret: " + (made.length === 1 ? made[0].qty + " × " + pname(made[0]) : made.length + " varer") + ", " + kr(sold) + " (" + made[0].payment + ")" + (warn.length ? ". Obs: lageret viser nå " + warn[0].l + " for " + pname(warn[0].m) + "." : ""));
   playSale();
 }
 
@@ -1013,11 +1075,11 @@ const csvCell = v => {
   return '"' + s.replace(/"/g, '""') + '"';
 };
 function exportCSV(){
-  const head = ["Dato","Tid","Selger","Produkt","Antall","Normalpris per stk","Normal totalt","Solgt totalt","Rabatt","Betaling","Kommentar","ID","Stand","Størrelse","Valuta","Kurs","Beløp lokal valuta"];
+  const head = ["Dato","Tid","Selger","Produkt","Antall","Normalpris per stk","Normal totalt","Solgt totalt","Rabatt","Betaling","Kommentar","ID","Stand","Størrelse","Valuta","Kurs","Beløp lokal valuta","Ordre"];
   const rows = state.sales.map(s => {
     const d = s.ts ? new Date(s.ts) : null;
     return [d ? d.toLocaleDateString("sv-SE") : s.date, d ? d.toLocaleTimeString("no-NO", { hour: "2-digit", minute: "2-digit" }) : "",
-      s.seller, s.product, s.qty, s.normalPrice, s.normalTotal, s.soldTotal, s.discount, s.payment, s.note, s.id, s.stand, s.size, s.cur, s.rate, s.local];
+      s.seller, s.product, s.qty, s.normalPrice, s.normalTotal, s.soldTotal, s.discount, s.payment, s.note, s.id, s.stand, s.size, s.cur, s.rate, s.local, s.order];
   });
   const csv = "﻿" + [head, ...rows].map(r => r.map(csvCell).join(";")).join("\r\n");
   download("klubbsalg-" + stamp() + ".csv", csv, "text/csv;charset=utf-8");
@@ -1139,7 +1201,7 @@ const postJ = body => net("POST", body);
 const errText = e => (e && e.message && !/^(Failed to fetch|Load failed)$|NetworkError/.test(e.message)) ? e.message : "ingen nettforbindelse";
 const wire = s => ({ id: s.id, ts: s.ts, seller: s.seller, product: s.product, qty: s.qty, normalPrice: s.normalPrice,
   normalTotal: s.normalTotal, soldTotal: s.soldTotal, discount: s.discount, payment: s.payment, note: s.note,
-  stand: s.stand, size: s.size, cur: s.cur, rate: s.rate, local: s.local });
+  stand: s.stand, size: s.size, cur: s.cur, rate: s.rate, local: s.local, order: s.order });
 
 function scheduleSync(){ if (!cfg.url) return; clearTimeout(syncSoon); syncSoon = setTimeout(syncNow, 400); }
 
@@ -1396,6 +1458,9 @@ function init(){
     $("qty").value = b.dataset.q; updatePlaceholder();
   });
   $("dayBtn").addEventListener("click", copyDay);
+  $("cartAddBtn").addEventListener("click", cartAdd);
+  $("cartClear").addEventListener("click", () => { cart = []; saveCart(); renderCart(); });
+  $("cartLines").addEventListener("click", e => { const b = e.target.closest("button[data-cartrm]"); if (!b) return; cart.splice(Number(b.dataset.cartrm), 1); saveCart(); renderCart(); });
   $("imgFile").addEventListener("change", e => { if (e.target.files[0]) pickImage(e.target.files[0]); });
   $("saveStockBtn").addEventListener("click", saveStock);
   $("standList").addEventListener("click", registryClick);
@@ -1419,7 +1484,8 @@ function init(){
   $("normalPrice").addEventListener("input", updatePlaceholder);
   $("fullPriceBtn").addEventListener("click", () => {
     const q = Number($("qty").value) || 0, np = Number($("normalPrice").value) || 0;
-    if (q > 0 && np > 0) $("soldTotal").value = Math.round(q * np / curStand().rate * 100) / 100; else $("normalPrice").focus();
+    const t = orderNormal();
+    if (t > 0) $("soldTotal").value = Math.round(t / curStand().rate * 100) / 100; else $("normalPrice").focus();
   });
   $("period").addEventListener("change", () => { renderSummary(); renderSales(); });
   $("salesBody").addEventListener("click", e => {
