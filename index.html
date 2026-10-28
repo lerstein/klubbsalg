@@ -127,6 +127,8 @@ textarea{min-height:90px;font-size:13px}
 .cart{border:1px solid var(--gold);border-radius:12px;padding:10px 12px;margin:12px 0 8px}
 .cartline{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line)}
 .cartline span{min-width:0;overflow-wrap:anywhere}
+.welcome{margin:12px 16px 0;padding:10px 14px;border:1px solid var(--gold);border-radius:12px;font-style:italic;text-align:center;transition:opacity .6s}
+.welcome.gone{opacity:0}
 .ver{font-size:12px;color:var(--muted);text-align:center;margin:18px 0 6px}
 </style>
 </head>
@@ -142,6 +144,7 @@ textarea{min-height:90px;font-size:13px}
   </div>
 </header>
 
+<div class="welcome" id="welcome" role="status">«Another visitor. Stay a while… stay forever!»</div>
 <main>
   <section class="card" aria-labelledby="hSale">
     <h2 id="hSale">Legg inn salg</h2>
@@ -805,24 +808,51 @@ function tone(freq, start, dur, vol, type){
   o.connect(g); g.connect(ac.destination);
   o.start(t0); o.stop(t0 + dur + 0.03);
 }
-function playSale(){          // glad «ka-ching» når et salg er registrert
+function playCart(){          // kort «kassapling» når en vare legges i handlekurven
   if (!soundOn) return;
   try {
-    tone(1318.5, 0,    0.10, 0.20, "triangle");
-    tone(1760,   0.09, 0.45, 0.20, "triangle");
-    tone(2637,   0.09, 0.30, 0.05, "sine");
+    tone(900,  0,    0.04, 0.10, "square");     // mekanisk klikk
+    tone(2093, 0.05, 0.55, 0.17, "sine");       // bjella
+    tone(4186, 0.05, 0.30, 0.04, "sine");
+  } catch(e) {}
+}
+function playSale(){          // fanfare når et salg er gjennomført
+  if (!soundOn) return;
+  try {
+    [392, 523.25, 659.25, 783.99].forEach((f, i) => tone(f, i * 0.11, 0.13, 0.10, "sawtooth"));   // oppadgående trompetsignal
+    tone(783.99,  0.46, 0.80, 0.09, "sawtooth");   // avsluttende akkord
+    tone(1046.5,  0.46, 0.80, 0.08, "sawtooth");
+    tone(1318.5,  0.46, 0.80, 0.07, "triangle");
+    tone(2637,    0.46, 0.45, 0.05, "sine");        // bjelleglimt på toppen
   } catch(e) {}
 }
 function playDelete(){        // lav, kort «dunk» ved sletting
   if (!soundOn) return;
   try { tone(392, 0, 0.12, 0.16, "triangle"); tone(262, 0.11, 0.22, 0.16, "triangle"); } catch(e) {}
 }
+function speakWelcome(){      // reservestemme hvis lydfilen mangler
+  try {
+    const u = new SpeechSynthesisUtterance("Another visitor. Stay a while... stay forever!");
+    u.lang = "en-US"; u.pitch = 0.3; u.rate = 0.75; u.volume = 1;
+    window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+  } catch(e) {}
+}
+function playWelcome(){       // spilles ved første trykk (nettlesere tillater ikke lyd før brukeren har trykket)
+  if (!soundOn) return;
+  let fell = false;
+  const fb = () => { if (fell) return; fell = true; speakWelcome(); };
+  try {
+    const a = new Audio("velkommen.mp3");
+    a.addEventListener("error", fb);
+    const pr = a.play(); if (pr && pr.catch) pr.catch(fb);
+  } catch(e) { fb(); }
+}
 function renderSoundBtn(){
   const b = $("soundBtn"); b.textContent = soundOn ? "Lyd på" : "Lyd av"; b.setAttribute("aria-pressed", String(soundOn));
 }
 function toggleSound(){
   soundOn = !soundOn; writeLS(SOUND_KEY, soundOn ? "1" : "0"); renderSoundBtn();
-  if (soundOn) playSale();    // gir en hørbar bekreftelse, og låser opp lyden på iPhone
+  if (soundOn) playCart();    // gir en hørbar bekreftelse, og låser opp lyden på iPhone
 }
 
 /* ---------- Vipps-betaling (fast QR til klubbens Vipps-nummer) ---------- */
@@ -896,6 +926,7 @@ function cartAdd(){
   addProductRecord(f.product, f.np, true); save();
   $("productSelect").value = ""; $("newProduct").value = ""; $("newProductBox").hidden = true; $("qty").value = 1; $("normalPrice").value = "";
   renderSizeBox(""); renderTiles(); renderStockInfo(); renderCart();
+  playCart();
 }
 
 function fail(text, focusId){ formMsg(text); if (focusId) $(focusId).focus(); }
@@ -1445,6 +1476,8 @@ function init(){
   renderSoundBtn();
   $("soundBtn").addEventListener("click", toggleSound);
   document.addEventListener("pointerdown", () => { if (soundOn) audio(); }, { once: true });
+  document.addEventListener("pointerdown", () => { playWelcome(); }, { once: true });
+  setTimeout(() => { const w = $("welcome"); w.classList.add("gone"); setTimeout(() => { w.hidden = true; }, 700); }, 7000);
   $("verTxt").textContent = "· v" + APP_VERSION; $("verFoot").textContent = "Klubbsalg v" + APP_VERSION;
   $("standSelect").addEventListener("change", standChanged);
   $("standFilter").addEventListener("change", () => { renderSummary(); renderSales(); });
