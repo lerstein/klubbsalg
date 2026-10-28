@@ -30,6 +30,14 @@ h1{margin:0;font-size:22px;line-height:1.1}
 h2{margin:0 0 4px;font-size:18px}
 h3{margin:18px 0 6px;font-size:14px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
 .sub{color:var(--muted);font-size:13px}
+.vipps-card{text-align:center}
+.vipps-amt{font-size:44px;font-weight:800;line-height:1.1;margin:6px 0 2px}
+.vipps-qr{width:min(78vw,300px);margin:12px auto;background:#fff;border-radius:12px;padding:6px}
+.vipps-qr svg{display:block;width:100%;height:auto}
+.chk{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;color:#cfcfcf}
+.chk input{width:20px;height:20px;margin:0}
+.hr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.hr button{min-height:32px;padding:4px 10px;font-size:12px;border-radius:99px}
 .pill{font-size:12px;padding:4px 10px;border-radius:99px;border:1px solid var(--ok-line);background:var(--ok-bg);color:var(--ok-fg);white-space:nowrap}
 .pill.bad{border-color:var(--err-line);background:var(--err-bg);color:var(--err-fg)}
 .pill.warn{border-color:var(--warn-line);background:var(--warn-bg);color:var(--warn-fg)}
@@ -101,15 +109,34 @@ textarea{min-height:90px;font-size:13px}
   .list-row input{flex:1}
 }
 @media(prefers-reduced-motion:no-preference){.toast{animation:up .18s ease-out}@keyframes up{from{opacity:0;transform:translate(-50%,8px)}}}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin:6px 0 2px}
+.tile{min-height:56px;padding:8px 10px;text-align:left;line-height:1.25;border-radius:10px;border:1px solid var(--line-strong);background:var(--field);color:var(--fg);font-weight:600;font-size:15px;cursor:pointer}
+.tile small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.tile.on{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.tile.on small{color:var(--gold-ink)}
+.qtys{display:flex;gap:8px;margin-top:6px}
+.qtys button{flex:1;min-height:40px;padding:0}
+.stockinfo{font-size:13px;color:var(--muted);margin:4px 0 0}
+.stockinfo.low{color:#c0392b;font-weight:600}
+.last{margin-top:12px;padding:10px 12px;border-radius:10px;border:1px dashed var(--line-strong);font-size:14px}
+.dayout{white-space:pre-wrap;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px;margin-top:10px}
+.list-row input.wide{width:120px}
+.list-row .tiny{font-size:12px;color:var(--muted)}
+.tile img{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:6px;margin-bottom:6px;background:#222}
+.thumb{width:36px;height:36px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px}
+.ver{font-size:12px;color:var(--muted);text-align:center;margin:18px 0 6px}
 </style>
 </head>
 <body>
 <header>
   <div>
     <h1>Klubbsalg</h1>
-    <div class="sub">Salg, rabatt og oppgjør</div>
+    <div class="sub">Salg, rabatt og oppgjør <span id="verTxt"></span></div>
   </div>
-  <span id="storagePill" class="pill">Lagring sjekkes …</span>
+  <div class="hr">
+    <button type="button" class="secondary small" id="soundBtn" aria-pressed="true" title="Lyd ved registrert salg">Lyd på</button>
+    <span id="storagePill" class="pill">Lagring sjekkes …</span>
+  </div>
 </header>
 
 <main>
@@ -125,9 +152,18 @@ textarea{min-height:90px;font-size:13px}
           <label for="newSeller">Ny selger</label>
           <input id="newSeller" placeholder="Navn" autocapitalize="words">
         </div>
+        <div id="standBox" hidden>
+          <label for="standSelect">Stand / arrangement</label>
+          <select id="standSelect"></select>
+        </div>
         <div>
           <label for="productSelect">Produkt</label>
+          <div class="tiles" id="tiles" aria-label="Hurtigvalg produkt"></div>
           <select id="productSelect"></select>
+        </div>
+        <div id="sizeBox" hidden>
+          <label for="sizeSelect">Størrelse</label>
+          <select id="sizeSelect"></select>
         </div>
         <div id="newProductBox" hidden>
           <label for="newProduct">Nytt produkt</label>
@@ -136,15 +172,17 @@ textarea{min-height:90px;font-size:13px}
         <div>
           <label for="qty">Antall</label>
           <input id="qty" type="number" inputmode="numeric" min="1" step="1" value="1">
+          <div class="qtys" id="qtys"><button type="button" class="secondary small" data-q="1">1</button><button type="button" class="secondary small" data-q="2">2</button><button type="button" class="secondary small" data-q="3">3</button><button type="button" class="secondary small" data-q="5">5</button></div>
+          <p class="stockinfo" id="stockInfo" hidden></p>
         </div>
         <div>
           <label for="normalPrice">Normalpris per stk (kr)</label>
           <input id="normalPrice" type="number" inputmode="numeric" min="0" step="1" placeholder="500">
         </div>
         <div>
-          <label for="soldTotal">Solgt for totalt (kr)</label>
+          <label for="soldTotal" id="soldLabel">Solgt for totalt (kr)</label>
           <div class="row">
-            <input id="soldTotal" class="grow" type="number" inputmode="numeric" min="0" step="1" placeholder="Beløp">
+            <input id="soldTotal" class="grow" type="number" inputmode="numeric" min="0" step="any" placeholder="Beløp">
             <button type="button" class="secondary small" id="fullPriceBtn" title="Fyll inn antall × normalpris">Full pris</button>
           </div>
         </div>
@@ -152,22 +190,30 @@ textarea{min-height:90px;font-size:13px}
       <fieldset>
         <legend>Betaling</legend>
         <div class="pay" id="payGroup"></div>
+        <label class="chk"><input type="checkbox" id="vippsOpt" checked> Vis Vipps-QR når det betales med Vipps</label>
       </fieldset>
       <label for="note">Kommentar</label>
       <input id="note" placeholder="F.eks. avslag, kompispris, levert senere">
       <div id="formMsg" class="msg err" role="alert" hidden></div>
       <button type="submit" id="saveSaleBtn">Lagre salg</button>
     </form>
+    <div class="last" id="lastSale" role="status" aria-live="polite" hidden></div>
   </section>
 
   <section class="card" aria-labelledby="hSum">
     <div class="row">
       <div class="grow"><h2 id="hSum">Oppgjør</h2><div class="sub" id="sumInfo"></div></div>
+      <div style="width:130px" id="standFilterBox" hidden>
+        <label for="standFilter" style="margin-top:0">Stand</label>
+        <select id="standFilter"></select>
+      </div>
       <div style="width:130px">
         <label for="period" style="margin-top:0">Vis</label>
         <select id="period"><option value="alle">Alle salg</option><option value="idag">Bare i dag</option></select>
       </div>
     </div>
+    <div class="btns"><button type="button" class="secondary" id="dayBtn">Kopier dagsoppgjør</button></div>
+    <div class="dayout" id="dayOut" hidden></div>
     <div class="summary" id="sumBoxes"></div>
     <h3>Per betalingsmåte</h3>
     <div class="summary" id="payBoxes"></div>
@@ -193,6 +239,19 @@ textarea{min-height:90px;font-size:13px}
       <div><label for="manualPrice">Standardpris (kr)</label><input id="manualPrice" type="number" inputmode="numeric" min="0" step="1" placeholder="Valgfritt"></div>
     </div>
     <button type="button" class="secondary" id="addProductBtn">Legg til produkt</button>
+    <h3>Stands og arrangement</h3>
+    <p class="sub">Valgfritt. Ved utenlandske stands: velg valuta og kurs, så skriver selgerne inn beløpet i lokal valuta og regnskapet går i kroner.</p>
+    <div id="standList"></div>
+    <div class="grid">
+      <div><label for="manualStand">Ny stand</label><input id="manualStand" placeholder="F.eks. Gøteborg"></div>
+      <div><label for="manualCur">Valuta</label><input id="manualCur" placeholder="NOK" maxlength="5" autocapitalize="characters" value="NOK"></div>
+      <div><label for="manualRate">Kurs (1 enhet = ? kr)</label><input id="manualRate" type="number" inputmode="decimal" min="0" step="any" placeholder="11.5"></div>
+    </div>
+    <button type="button" class="secondary" id="addStandBtn">Legg til stand</button>
+    <h3>Varelager (valgfritt)</h3>
+    <p class="sub">Appen virker uten lager. Fyll inn talt antall på det du vil følge, så vises «igjen» på produktene og trekkes ned for hvert salg. La felt stå tomme for å hoppe over.</p>
+    <div id="stockList"></div>
+    <button type="button" class="secondary" id="saveStockBtn">Lagre varetelling</button>
     <h3>Selgere</h3>
     <div id="sellerList"></div>
     <label for="manualSeller">Ny selger</label>
@@ -243,7 +302,24 @@ textarea{min-height:90px;font-size:13px}
     <p class="sub">Sletting av salg krever tilkobling til Google Sheet og administratorpassord.</p>
     <button type="button" class="danger" id="clearBtn">Slett alle salg</button>
   </section>
+  <p class="ver" id="verFoot"></p>
+  <input id="imgFile" type="file" accept="image/*" hidden>
 </main>
+
+<div id="vippsModal" class="modal" hidden>
+  <div class="modal-card vipps-card" role="dialog" aria-modal="true" aria-labelledby="vippsTitle">
+    <h2 id="vippsTitle">Betal med Vipps</h2>
+    <div class="vipps-amt" id="vippsAmt"></div>
+    <p class="sub" id="vippsWhat"></p>
+    <div class="vipps-qr" id="vippsQr"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37 37" shape-rendering="crispEdges" role="img" aria-label="QR-kode til Vipps"><rect width="37" height="37" fill="#fff"/><path fill="#000" d="M4 4h7v1h-7zM12 4h1v1h-1zM14 4h4v1h-4zM19 4h1v1h-1zM22 4h1v1h-1zM24 4h1v1h-1zM26 4h7v1h-7zM4 5h1v1h-1zM10 5h1v1h-1zM12 5h2v1h-2zM16 5h2v1h-2zM21 5h1v1h-1zM23 5h2v1h-2zM26 5h1v1h-1zM32 5h1v1h-1zM4 6h1v1h-1zM6 6h3v1h-3zM10 6h1v1h-1zM12 6h2v1h-2zM15 6h1v1h-1zM17 6h1v1h-1zM19 6h2v1h-2zM23 6h1v1h-1zM26 6h1v1h-1zM28 6h3v1h-3zM32 6h1v1h-1zM4 7h1v1h-1zM6 7h3v1h-3zM10 7h1v1h-1zM13 7h1v1h-1zM16 7h1v1h-1zM19 7h1v1h-1zM21 7h3v1h-3zM26 7h1v1h-1zM28 7h3v1h-3zM32 7h1v1h-1zM4 8h1v1h-1zM6 8h3v1h-3zM10 8h1v1h-1zM12 8h5v1h-5zM18 8h4v1h-4zM23 8h2v1h-2zM26 8h1v1h-1zM28 8h3v1h-3zM32 8h1v1h-1zM4 9h1v1h-1zM10 9h1v1h-1zM13 9h1v1h-1zM18 9h1v1h-1zM20 9h1v1h-1zM22 9h1v1h-1zM26 9h1v1h-1zM32 9h1v1h-1zM4 10h7v1h-7zM12 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM20 10h1v1h-1zM22 10h1v1h-1zM24 10h1v1h-1zM26 10h7v1h-7zM13 11h1v1h-1zM15 11h3v1h-3zM22 11h1v1h-1zM24 11h1v1h-1zM4 12h1v1h-1zM7 12h6v1h-6zM14 12h2v1h-2zM17 12h2v1h-2zM21 12h5v1h-5zM28 12h1v1h-1zM30 12h3v1h-3zM4 13h1v1h-1zM9 13h1v1h-1zM11 13h2v1h-2zM16 13h1v1h-1zM19 13h6v1h-6zM27 13h2v1h-2zM30 13h2v1h-2zM5 14h1v1h-1zM8 14h3v1h-3zM15 14h1v1h-1zM18 14h2v1h-2zM25 14h3v1h-3zM30 14h1v1h-1zM7 15h1v1h-1zM12 15h4v1h-4zM19 15h3v1h-3zM23 15h4v1h-4zM28 15h2v1h-2zM32 15h1v1h-1zM6 16h2v1h-2zM9 16h2v1h-2zM12 16h2v1h-2zM16 16h1v1h-1zM19 16h2v1h-2zM22 16h1v1h-1zM24 16h1v1h-1zM26 16h1v1h-1zM32 16h1v1h-1zM5 17h1v1h-1zM8 17h1v1h-1zM13 17h2v1h-2zM16 17h2v1h-2zM20 17h1v1h-1zM24 17h9v1h-9zM5 18h1v1h-1zM7 18h2v1h-2zM10 18h1v1h-1zM14 18h3v1h-3zM19 18h2v1h-2zM22 18h5v1h-5zM30 18h1v1h-1zM32 18h1v1h-1zM4 19h1v1h-1zM7 19h2v1h-2zM11 19h1v1h-1zM13 19h1v1h-1zM18 19h2v1h-2zM22 19h2v1h-2zM26 19h2v1h-2zM30 19h1v1h-1zM32 19h1v1h-1zM5 20h3v1h-3zM10 20h1v1h-1zM15 20h2v1h-2zM19 20h2v1h-2zM22 20h3v1h-3zM27 20h1v1h-1zM29 20h1v1h-1zM4 21h2v1h-2zM8 21h2v1h-2zM12 21h1v1h-1zM14 21h1v1h-1zM16 21h2v1h-2zM19 21h1v1h-1zM21 21h1v1h-1zM23 21h3v1h-3zM27 21h2v1h-2zM30 21h2v1h-2zM4 22h4v1h-4zM10 22h2v1h-2zM13 22h2v1h-2zM17 22h1v1h-1zM19 22h1v1h-1zM21 22h1v1h-1zM23 22h5v1h-5zM29 22h1v1h-1zM32 22h1v1h-1zM4 23h2v1h-2zM8 23h2v1h-2zM11 23h2v1h-2zM17 23h1v1h-1zM19 23h2v1h-2zM28 23h3v1h-3zM4 24h4v1h-4zM10 24h6v1h-6zM17 24h1v1h-1zM20 24h3v1h-3zM24 24h8v1h-8zM12 25h2v1h-2zM17 25h6v1h-6zM24 25h1v1h-1zM28 25h2v1h-2zM4 26h7v1h-7zM12 26h1v1h-1zM14 26h2v1h-2zM17 26h1v1h-1zM19 26h2v1h-2zM23 26h2v1h-2zM26 26h1v1h-1zM28 26h2v1h-2zM4 27h1v1h-1zM10 27h1v1h-1zM12 27h3v1h-3zM17 27h1v1h-1zM20 27h2v1h-2zM23 27h2v1h-2zM28 27h1v1h-1zM31 27h2v1h-2zM4 28h1v1h-1zM6 28h3v1h-3zM10 28h1v1h-1zM12 28h3v1h-3zM17 28h1v1h-1zM19 28h1v1h-1zM22 28h8v1h-8zM31 28h1v1h-1zM4 29h1v1h-1zM6 29h3v1h-3zM10 29h1v1h-1zM12 29h1v1h-1zM15 29h1v1h-1zM17 29h3v1h-3zM23 29h1v1h-1zM25 29h1v1h-1zM27 29h1v1h-1zM32 29h1v1h-1zM4 30h1v1h-1zM6 30h3v1h-3zM10 30h1v1h-1zM14 30h3v1h-3zM18 30h2v1h-2zM22 30h1v1h-1zM24 30h1v1h-1zM27 30h2v1h-2zM30 30h3v1h-3zM4 31h1v1h-1zM10 31h1v1h-1zM13 31h1v1h-1zM17 31h4v1h-4zM22 31h1v1h-1zM26 31h5v1h-5zM32 31h1v1h-1zM4 32h7v1h-7zM12 32h2v1h-2zM15 32h6v1h-6zM22 32h1v1h-1zM24 32h1v1h-1zM26 32h4v1h-4z"/></svg></div>
+    <p class="sub" id="vippsTo"></p>
+    <p class="sub">Kunden skanner koden og skriver inn beløpet over.</p>
+    <div class="row">
+      <button type="button" class="secondary grow" id="vippsCancel">Avbryt</button>
+      <button type="button" class="grow" id="vippsOk">Betalt, lagre salget</button>
+    </div>
+  </div>
+</div>
 
 <div id="pwModal" class="modal" hidden>
   <form id="pwForm" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="pwTitle" autocomplete="off">
@@ -271,8 +347,8 @@ textarea{min-height:90px;font-size:13px}
       <div><label for="eQty">Antall</label><input id="eQty" type="number" inputmode="numeric" min="1" step="1"></div>
       <div><label for="ePrice">Normalpris per stk (kr)</label><input id="ePrice" type="number" inputmode="numeric" min="0" step="1"></div>
     </div>
-    <label for="eSold">Solgt for totalt (kr)</label>
-    <input id="eSold" type="number" inputmode="numeric" min="0" step="1">
+    <label for="eSold" id="eSoldLbl">Solgt for totalt (kr)</label>
+    <input id="eSold" type="number" inputmode="decimal" min="0" step="any">
     <label for="ePay">Betaling</label>
     <select id="ePay"><option>Vipps</option><option>Kontant</option><option>Bank</option><option>Annet</option></select>
     <label for="eNote">Kommentar</label>
@@ -293,7 +369,9 @@ textarea{min-height:90px;font-size:13px}
 
 /* ---------- Grunnlag ---------- */
 const KEY = "klubbsalg_v3";
+const APP_VERSION = "8";
 const PAYMENTS = ["Vipps","Kontant","Bank","Annet"];
+const STAND_KEY_SUFFIX = "_stand";
 const DEFAULT_PRODUCTS = [
   {name:"Zippo lighter", normalPrice:500},
   {name:"Kortholder", normalPrice:400},
@@ -304,13 +382,14 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const nf = n => Math.round(Number(n) || 0).toLocaleString("no-NO");
 const kr = n => nf(n) + " kr";
+const nf2 = n => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString("no-NO");
 const clean = s => String(s ?? "").replace(/\s+/g, " ").trim();
 const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
 const payKey = p => PAYMENTS.includes(p) ? p : "Annet";
 const byName = (a, b) => a.localeCompare(b, "no");
 
 // pend: selgere og produkter som er lagt til her og ennå ikke er sendt til Google Sheet
-let state = { sales: [], sellers: [], products: DEFAULT_PRODUCTS.map(p => ({...p})), pend: { sellers: [], products: [] } };
+let state = { sales: [], sellers: [], products: DEFAULT_PRODUCTS.map(p => ({...p, sizes: []})), stands: [], stock: [], pend: { sellers: [], products: [] } };
 let storageOk = true;
 let loadedOk = true;   // false hvis lagrede data var uleselige: da skriver vi ikke over uten at brukeren har fått beskjed
 let undoFn = null, toastTimer = null;
@@ -354,9 +433,14 @@ function cleanSale(s){
   const discount = hasD ? Number(s.discount) : normalTotal - soldTotal;
   let ts = Number(s.ts) || 0;
   if (!ts && Number(s.id) > 1e12) ts = Number(s.id);   // gamle versjoner brukte Date.now() som id
+  let cur = clean(s.cur).toUpperCase() || "NOK";
+  let rate = Number(s.rate) > 0 ? Number(s.rate) : 1;
+  if (cur === "NOK") rate = 1;
+  const local = (s.local === undefined || s.local === null || s.local === "") ? Math.round(soldTotal / rate * 100) / 100 : Math.max(0, Number(s.local) || 0);
   return {
     id: String(s.id ?? uid()), ts, date: s.date ? String(s.date) : "",
     seller, product, qty, normalPrice, normalTotal, soldTotal, discount,
+    stand: clean(s.stand), size: clean(s.size), cur, rate, local,
     payment: clean(s.payment) || "Annet", note: String(s.note ?? "").trim(),
     synced: s.synced === true, mine: s.mine === true
   };
@@ -384,6 +468,11 @@ function mergeIn(data, flag, noLists){
   return { added, skipped, bad };
 }
 
+const cleanSizes = a => (Array.isArray(a) ? a : []).map(clean).filter(Boolean);
+const cleanStands = a => (Array.isArray(a) ? a : []).map(x => { const cur = (clean(x && x.cur) || "NOK").toUpperCase(); const r = Number(x && x.rate); return { name: clean(x && x.name), cur, rate: cur === "NOK" ? 1 : (r > 0 ? r : 1) }; }).filter(x => x.name);
+const cleanStock = a => (Array.isArray(a) ? a : []).map(x => ({ product: clean(x && x.product), size: clean(x && x.size), count: Math.round(Number(x && x.count)), ts: Number(x && x.ts) || 0 })).filter(x => x.product && Number.isFinite(x.count));
+const lc = v => String(v || "").toLowerCase();
+
 // track: nytt navn legges i «pend» og sendes til Google Sheet ved neste synk
 function addSellerName(n, track){
   n = clean(n);
@@ -400,7 +489,7 @@ function addProductRecord(name, price, track){
   price = Math.max(0, Number(price) || 0);
   const hit = state.products.find(p => p.name.toLowerCase() === name.toLowerCase());
   if (hit) { if (!hit.normalPrice && price > 0) hit.normalPrice = price; return hit.name; }
-  state.products.push({ name, normalPrice: price });
+  state.products.push({ name, normalPrice: price, sizes: [], image: "" });
   state.products.sort((a, b) => byName(a.name, b.name));
   if (track) state.pend.products.push({ name, normalPrice: price });
   return name;
@@ -422,7 +511,8 @@ function load(){
       const pd = d.pend || {};
       state = {
         sales: [], sellers: Array.isArray(d.sellers) ? d.sellers.map(clean).filter(Boolean) : [],
-        products: Array.isArray(d.products) && d.products.length ? d.products.filter(p => p && clean(p.name)).map(p => ({ name: clean(p.name), normalPrice: Math.max(0, Number(p.normalPrice) || 0) })) : DEFAULT_PRODUCTS.map(p => ({...p})),
+        products: Array.isArray(d.products) && d.products.length ? d.products.filter(p => p && clean(p.name)).map(p => ({ name: clean(p.name), normalPrice: Math.max(0, Number(p.normalPrice) || 0), sizes: cleanSizes(p.sizes), image: /^data:image\/jpeg;base64,/.test(String(p.image || "")) ? String(p.image) : "" })) : DEFAULT_PRODUCTS.map(p => ({...p, sizes: []})),
+        stands: cleanStands(d.stands), stock: cleanStock(d.stock),
         pend: {
           sellers: Array.isArray(pd.sellers) ? pd.sellers.map(clean).filter(Boolean) : [],
           products: Array.isArray(pd.products) ? pd.products.filter(p => p && clean(p.name)).map(p => ({ name: clean(p.name), normalPrice: Math.max(0, Number(p.normalPrice) || 0) })) : []
@@ -497,14 +587,16 @@ function sameDay(ts){
   const a = new Date(ts), b = new Date();
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
-const inPeriod = s => $("period").value === "alle" || (s.ts && sameDay(s.ts));
+const standOk = s => !$("standFilter").value || s.stand === $("standFilter").value;
+const inPeriod = s => ($("period").value === "alle" || (s.ts && sameDay(s.ts))) && standOk(s);
+const pname = s => s.product + (s.size ? " (" + s.size + ")" : "");
 const dateText = s => s.ts ? new Date(s.ts).toLocaleString("no-NO", { dateStyle: "short", timeStyle: "short" }) : (s.date || "");
 
 function renderSummary(){
   const v = state.sales.filter(inPeriod);
   let sold = 0, normal = 0, disc = 0, qty = 0;
   const pay = { Vipps: 0, Kontant: 0, Bank: 0, Annet: 0 };
-  const sellers = new Map(), prods = new Map();
+  const sellers = new Map(), prods = new Map(), cashFx = {};
   for (const s of v) {
     sold += s.soldTotal; normal += s.normalTotal; disc += s.discount; qty += s.qty;
     const pk = payKey(s.payment);
@@ -513,8 +605,10 @@ function renderSummary(){
     if (!r) { r = { n: 0, q: 0, Vipps: 0, Kontant: 0, Bank: 0, Annet: 0, sum: 0 }; sellers.set(s.seller, r); }
     r.n++; r.q += s.qty; r[pk] += s.soldTotal; r.sum += s.soldTotal;
     let p = prods.get(s.product);
-    if (!p) { p = { q: 0, sum: 0 }; prods.set(s.product, p); }
+    if (!p) { p = { q: 0, sum: 0, sizes: new Map() }; prods.set(s.product, p); }
     p.q += s.qty; p.sum += s.soldTotal;
+    if (s.size) p.sizes.set(s.size, (p.sizes.get(s.size) || 0) + s.qty);
+    if (pk === "Kontant" && s.cur && s.cur !== "NOK") cashFx[s.cur] = (cashFx[s.cur] || 0) + s.local;
   }
   $("sumInfo").textContent = v.length + (v.length === 1 ? " salg" : " salg") + ($("period").value === "idag" ? " i dag" : " totalt");
   $("sumBoxes").innerHTML =
@@ -523,7 +617,8 @@ function renderSummary(){
     '<div class="box">Rabatt gitt<strong>' + kr(disc) + '</strong></div>' +
     '<div class="box">Antall varer<strong>' + qty + '</strong></div>';
   $("payBoxes").innerHTML = PAYMENTS.map(p =>
-    '<div class="box' + (p === "Kontant" ? " hl" : "") + '">' + (p === "Kontant" ? "Kontant (skal ligge i kassa)" : p) + '<strong>' + kr(pay[p]) + '</strong></div>').join("");
+    '<div class="box' + (p === "Kontant" ? " hl" : "") + '">' + (p === "Kontant" ? "Kontant (skal ligge i kassa)" : p) + '<strong>' + kr(pay[p]) + '</strong></div>').join("") +
+    (Object.keys(cashFx).length ? '<div class="box">Kontant i utenlandsk valuta<strong>' + Object.entries(cashFx).map(([c, n]) => nf(n) + " " + esc(c)).join(" + ") + '</strong></div>' : "");
 
   const sRows = [...sellers.entries()].sort((a, b) => byName(a[0], b[0]));
   $("sellerTable").innerHTML = sRows.length
@@ -535,7 +630,7 @@ function renderSummary(){
   const pRows = [...prods.entries()].sort((a, b) => byName(a[0], b[0]));
   $("productTable").innerHTML = pRows.length
     ? '<thead><tr><th>Produkt</th><th class="num">Antall</th><th class="num">Sum</th></tr></thead><tbody>' +
-      pRows.map(([n, r]) => '<tr><td>' + esc(n) + '</td><td class="num">' + r.q + '</td><td class="num">' + kr(r.sum) + '</td></tr>').join("") + '</tbody>'
+      pRows.map(([n, r]) => '<tr><td>' + esc(n) + (r.sizes.size ? ' <span class="sub">(' + [...r.sizes.entries()].map(([z, q]) => esc(z) + ': ' + q).join(", ") + ')</span>' : '') + '</td><td class="num">' + r.q + '</td><td class="num">' + kr(r.sum) + '</td></tr>').join("") + '</tbody>'
     : '<tbody><tr><td class="sub">Ingen salg å vise.</td></tr></tbody>';
 }
 
@@ -543,9 +638,10 @@ function renderSales(){
   const v = state.sales.filter(inPeriod);
   $("emptyList").hidden = v.length > 0;
   $("salesBody").innerHTML = v.map(s =>
-    '<div class="sale"><div class="main">' + s.qty + ' × ' + esc(s.product) + '</div>' +
+    '<div class="sale"><div class="main">' + s.qty + ' × ' + esc(pname(s)) + '</div>' +
     '<div class="amt">' + kr(s.soldTotal) + '</div>' +
-    '<div class="meta">' + esc(s.seller) + ' · ' + esc(s.payment) + ' · ' + esc(dateText(s)) + '</div>' +
+    '<div class="meta">' + esc(s.seller) + ' · ' + esc(s.payment) + (s.stand ? ' · ' + esc(s.stand) : '') + ' · ' + esc(dateText(s)) + '</div>' +
+    (s.cur && s.cur !== "NOK" ? '<div class="extra">Betalt ' + nf2(s.local) + ' ' + esc(s.cur) + ' (kurs ' + nf2(s.rate) + ')</div>' : '') +
     (s.discount !== 0 && s.normalTotal !== s.soldTotal ? '<div class="extra">Normalpris ' + kr(s.normalTotal) + ' · ' + (s.discount > 0 ? 'rabatt ' + kr(s.discount) : 'over normalpris ' + kr(-s.discount)) + '</div>' : '') +
     (s.note ? '<div class="note">' + esc(s.note) + '</div>' : '') +
     (canOwn(s) ? '<div class="extra">Du kan endre eller slette dette salget i ' + minsLeft(s) + ' min til.</div>' : '') +
@@ -556,18 +652,113 @@ function renderSales(){
 
 function renderRegistry(){
   $("productList").innerHTML = state.products.map((p, i) =>
-    '<div class="list-row"><span class="name">' + esc(p.name) + '</span>' +
+    '<div class="list-row"><span class="name">' + (p.image ? '<img class="thumb" alt="" src="' + p.image + '">' : '') + esc(p.name) + '</span>' +
     '<input type="number" inputmode="numeric" min="0" step="1" value="' + (p.normalPrice || "") + '" placeholder="kr" aria-label="Standardpris for ' + esc(p.name) + '" data-price="' + i + '">' +
+    '<input class="wide" value="' + esc((p.sizes || []).join(", ")) + '" placeholder="Størrelser" aria-label="Størrelser for ' + esc(p.name) + ' (kommaseparert)" data-sizes="' + i + '">' +
     '<button type="button" class="secondary small" data-saveprice="' + i + '">Lagre</button>' +
+    '<button type="button" class="secondary small" data-img="' + i + '">' + (p.image ? 'Bytt bilde' : 'Bilde') + '</button>' +
+    (p.image ? '<button type="button" class="secondary small" data-rmimg="' + i + '">Fjern bilde</button>' : '') +
     '<button type="button" class="danger small" data-rmprod="' + i + '">Fjern</button></div>').join("") || '<p class="sub">Ingen produkter.</p>';
+  $("standList").innerHTML = state.stands.map((x, i) =>
+    '<div class="list-row"><span class="name">' + esc(x.name) + ' <span class="tiny">' + (x.cur === "NOK" ? "NOK" : esc(x.cur) + " · kurs " + nf2(x.rate)) + '</span></span>' +
+    '<button type="button" class="danger small" data-rmstand="' + i + '">Fjern</button></div>').join("") || '<p class="sub">Ingen stands lagt inn.</p>';
+  renderStockList();
   $("sellerList").innerHTML = state.sellers.map((n, i) =>
     '<div class="list-row"><span class="name">' + esc(n) + '</span><button type="button" class="danger small" data-rmsell="' + i + '">Fjern</button></div>').join("") || '<p class="sub">Ingen selgere ennå.</p>';
+}
+
+/* ---------- Stand, størrelse, lager, hurtigvalg ---------- */
+const productRec = name => state.products.find(p => p.name === name);
+function stockRow(product, size){ return state.stock.find(r => lc(r.product) === lc(product) && lc(r.size) === lc(size)); }
+function stockLeft(product, size){
+  const r = stockRow(product, size);
+  if (!r) return null;
+  let sold = 0;
+  for (const s of state.sales) if (lc(s.product) === lc(product) && lc(s.size) === lc(size) && (s.ts || 0) > (r.ts || 0)) sold += s.qty;
+  return r.count - sold;
+}
+function productLeft(p){
+  const sizes = p.sizes || [];
+  if (!sizes.length) return stockLeft(p.name, "");
+  let tot = null;
+  for (const z of sizes) { const l = stockLeft(p.name, z); if (l !== null) tot = (tot || 0) + l; }
+  return tot;
+}
+const curStand = () => state.stands.find(x => x.name === $("standSelect").value) || { name: "", cur: "NOK", rate: 1 };
+
+function renderStandSelect(){
+  const el = $("standSelect"), keep = el.value || readLS(KEY + STAND_KEY_SUFFIX) || "";
+  el.innerHTML = '<option value="">Ingen stand valgt</option>' + state.stands.map(x => '<option value="' + esc(x.name) + '">' + esc(x.name) + (x.cur !== "NOK" ? " (" + esc(x.cur) + ")" : "") + '</option>').join("");
+  el.value = state.stands.some(x => x.name === keep) ? keep : "";
+  $("standBox").hidden = state.stands.length === 0;
+  const f = $("standFilter"), fk = f.value;
+  const names = [...new Set([...state.stands.map(x => x.name), ...state.sales.map(s => s.stand).filter(Boolean)])].sort(byName);
+  f.innerHTML = '<option value="">Alle</option>' + names.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join("");
+  f.value = names.includes(fk) ? fk : "";
+  $("standFilterBox").hidden = names.length === 0;
+  renderCurrency();
+}
+function renderCurrency(){
+  const st = curStand(), u = st.cur === "NOK" ? "kr" : st.cur;
+  $("soldLabel").textContent = "Solgt for totalt (" + u + ")";
+  $("soldTotal").inputMode = st.cur === "NOK" ? "numeric" : "decimal";
+  updatePlaceholder();
+}
+function standChanged(){ writeLS(KEY + STAND_KEY_SUFFIX, $("standSelect").value); renderCurrency(); }
+
+function renderTiles(){
+  const cur = $("productSelect").value;
+  $("tiles").innerHTML = state.products.map(p => {
+    const l = productLeft(p);
+    return '<button type="button" class="tile' + (p.name === cur ? " on" : "") + '" data-prod="' + esc(p.name) + '" aria-pressed="' + (p.name === cur) + '">' + (p.image ? '<img alt="" src="' + p.image + '">' : '') + esc(p.name) +
+      '<small>' + (p.normalPrice ? kr(p.normalPrice) : "") + (l !== null ? (p.normalPrice ? " · " : "") + l + " igjen" : "") + '&nbsp;</small></button>';
+  }).join("");
+}
+function renderSizeBox(keep){
+  const p = productRec($("productSelect").value), sizes = p ? (p.sizes || []) : [];
+  const el = $("sizeSelect"), k = keep !== undefined ? keep : el.value;
+  $("sizeBox").hidden = !sizes.length;
+  el.innerHTML = '<option value="">Velg størrelse</option>' + sizes.map(z => {
+    const l = stockLeft(p.name, z);
+    return '<option value="' + esc(z) + '">' + esc(z) + (l !== null ? " (" + l + " igjen)" : "") + '</option>';
+  }).join("");
+  el.value = sizes.includes(k) ? k : "";
+}
+function renderStockInfo(){
+  const el = $("stockInfo"), p = productRec($("productSelect").value);
+  if (!p) { el.hidden = true; return; }
+  const sizes = p.sizes || [], z = sizes.length ? $("sizeSelect").value : "";
+  const l = sizes.length && !z ? null : stockLeft(p.name, z);
+  if (l === null) { el.hidden = true; return; }
+  el.hidden = false; el.textContent = "På lager: " + l; el.className = "stockinfo" + (l <= 0 ? " low" : "");
+}
+function renderLast(){
+  const s = state.sales.find(x => x.mine === true), el = $("lastSale");
+  if (!s) { el.hidden = true; return; }
+  el.hidden = false;
+  el.textContent = "Sist registrert: " + s.qty + " × " + pname(s) + " · " + kr(s.soldTotal) + " · " + s.payment + " · kl. " + (s.ts ? new Date(s.ts).toLocaleTimeString("no-NO", { hour: "2-digit", minute: "2-digit" }) : "");
+}
+function renderStockList(){
+  const typed = {};   // det som er skrevet inn men ikke lagret, skal ikke forsvinne når siden oppdateres av en synk
+  document.querySelectorAll("#stockList input[data-stock]").forEach(i => { if (i.value !== "") typed[i.dataset.sp + "|" + i.dataset.sz] = i.value; });
+  const rows = [];
+  state.products.forEach(p => { const z = p.sizes || []; if (z.length) z.forEach(x => rows.push({ p: p.name, z: x })); else rows.push({ p: p.name, z: "" }); });
+  $("stockList").innerHTML = rows.map((r, i) => {
+    const l = stockLeft(r.p, r.z);
+    return '<div class="list-row"><span class="name">' + esc(r.p) + (r.z ? ' · ' + esc(r.z) : '') + ' <span class="tiny">' + (l === null ? "ikke telt" : l + " igjen") + '</span></span>' +
+      '<input type="number" inputmode="numeric" min="0" step="1" placeholder="Telt" value="' + esc(typed[r.p + "|" + r.z] || "") + '" aria-label="Talt antall ' + esc(r.p + (r.z ? " " + r.z : "")) + '" data-stock="' + i + '" data-sp="' + esc(r.p) + '" data-sz="' + esc(r.z) + '"></div>';
+  }).join("") || '<p class="sub">Ingen produkter.</p>';
+}
+function renderFormExtras(){
+  renderTiles(); renderSizeBox(); renderStockInfo(); renderLast();
 }
 
 function renderAll(keepSeller, keepProduct){
   renderSellerSelect(keepSeller);
   renderProductSelect(keepProduct);
+  renderStandSelect();
   renderSummary(); renderSales(); renderRegistry(); renderPill();
+  renderFormExtras();
 }
 
 /* ---------- Meldinger ---------- */
@@ -583,6 +774,61 @@ function toast(text, actionLabel, fn){
   toastTimer = setTimeout(() => { $("toast").hidden = true; undoFn = null; }, fn ? 9000 : 4000);
 }
 
+/* ---------- Lyd (lages i nettleseren, ingen lydfiler) ---------- */
+const SOUND_KEY = KEY + "_lyd";
+let soundOn = readLS(SOUND_KEY) !== "0";
+let audioCtx = null;
+function audio(){
+  try {
+    if (!audioCtx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; audioCtx = new AC(); }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  } catch(e) { return null; }
+}
+function tone(freq, start, dur, vol, type){
+  const ac = audio(); if (!ac) return;
+  const t0 = ac.currentTime + start;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type || "sine"; o.frequency.setValueAtTime(freq, t0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(ac.destination);
+  o.start(t0); o.stop(t0 + dur + 0.03);
+}
+function playSale(){          // glad «ka-ching» når et salg er registrert
+  if (!soundOn) return;
+  try {
+    tone(1318.5, 0,    0.10, 0.20, "triangle");
+    tone(1760,   0.09, 0.45, 0.20, "triangle");
+    tone(2637,   0.09, 0.30, 0.05, "sine");
+  } catch(e) {}
+}
+function playDelete(){        // lav, kort «dunk» ved sletting
+  if (!soundOn) return;
+  try { tone(392, 0, 0.12, 0.16, "triangle"); tone(262, 0.11, 0.22, 0.16, "triangle"); } catch(e) {}
+}
+function renderSoundBtn(){
+  const b = $("soundBtn"); b.textContent = soundOn ? "Lyd på" : "Lyd av"; b.setAttribute("aria-pressed", String(soundOn));
+}
+function toggleSound(){
+  soundOn = !soundOn; writeLS(SOUND_KEY, soundOn ? "1" : "0"); renderSoundBtn();
+  if (soundOn) playSale();    // gir en hørbar bekreftelse, og låser opp lyden på iPhone
+}
+
+/* ---------- Vipps-betaling (fast QR til klubbens Vipps-nummer) ---------- */
+const VIPPS_NAME = "Låveshopen", VIPPS_NR = "#954076";
+const VIPPS_OPT_KEY = KEY + "_vippsqr";
+let vippsDone = null;
+const vippsEnabled = () => readLS(VIPPS_OPT_KEY) !== "0";
+function vippsClose(){ $("vippsModal").hidden = true; vippsDone = null; }
+function showVipps(qty, product, sold, done){
+  $("vippsAmt").textContent = kr(sold);
+  $("vippsWhat").textContent = qty + " × " + product;
+  $("vippsTo").textContent = "Betal til " + VIPPS_NAME + " " + VIPPS_NR;
+  vippsDone = done; $("vippsModal").hidden = false; $("vippsOk").focus();
+}
+
 /* ---------- Skjema ---------- */
 function productPrice(name){ const p = state.products.find(x => x.name === name); return p ? p.normalPrice : 0; }
 
@@ -591,6 +837,7 @@ function productChanged(){
   $("newProductBox").hidden = v !== "__new__";
   if (v === "__new__") { $("normalPrice").value = ""; $("newProduct").focus(); }
   else if (v) { const pr = productPrice(v); $("normalPrice").value = pr > 0 ? pr : ""; }
+  renderSizeBox(""); renderTiles(); renderStockInfo();
   updatePlaceholder();
 }
 function sellerChanged(){
@@ -601,7 +848,8 @@ function sellerChanged(){
 }
 function updatePlaceholder(){
   const q = Number($("qty").value) || 0, np = Number($("normalPrice").value) || 0;
-  $("soldTotal").placeholder = (q > 0 && np > 0) ? String(q * np) : "Beløp";
+  const r = curStand().rate;
+  $("soldTotal").placeholder = (q > 0 && np > 0) ? String(Math.round(q * np / r * 100) / 100) : "Beløp";
 }
 
 function fail(text, focusId){ formMsg(text); if (focusId) $(focusId).focus(); }
@@ -621,13 +869,21 @@ function addSale(ev){
   if (!(np >= 0)) return fail("Normalpris kan ikke være negativ.", "normalPrice");
   const soldRaw = $("soldTotal").value.trim();
   if (soldRaw === "") return fail("Skriv inn beløpet kunden betalte. Skriv 0 hvis varen er gitt bort.", "soldTotal");
-  const sold = Number(soldRaw);
-  if (!(sold >= 0)) return fail("Salgsbeløpet kan ikke være negativt.", "soldTotal");
+  const local = Number(soldRaw);
+  if (!(local >= 0)) return fail("Salgsbeløpet kan ikke være negativt.", "soldTotal");
+  const st = curStand(), sold = st.cur === "NOK" ? local : Math.round(local * st.rate * 100) / 100;
+  const rec = productRec(product), size = $("sizeSelect").value;
+  if (rec && (rec.sizes || []).length && !size) return fail("Velg størrelse.", "sizeSelect");
+  if (selectedPayment() === "Vipps" && sold > 0 && st.cur === "NOK" && vippsEnabled() && !ev._vippsOk) {
+    showVipps(qty, product, sold, () => addSale({ preventDefault(){}, _vippsOk: true }));
+    return;
+  }
 
   // Uten normalpris finnes det ingen rabatt å regne ut
   const normalTotal = np > 0 ? qty * np : sold;
   const sale = {
     id: uid(), ts: Date.now(), date: "", seller, product, qty, normalPrice: np,
+    stand: st.name, size: rec && (rec.sizes || []).length ? size : "", cur: st.cur, rate: st.rate, local,
     normalTotal, soldTotal: sold, discount: normalTotal - sold,
     payment: selectedPayment(), note: $("note").value.trim(), synced: false, mine: true
   };
@@ -642,8 +898,10 @@ function addSale(ev){
   renderAll(seller, product);
   const pr = productPrice(product); $("normalPrice").value = pr > 0 ? pr : "";
   updatePlaceholder();
+  const left = stockLeft(product, sale.size);
   if (!ok) formMsg("Salget er registrert, men nettleseren lot ikke lagre. Last ned sikkerhetskopi før du lukker siden.");
-  else toast("Lagret: " + qty + " × " + product + ", " + kr(sold) + " (" + sale.payment + ")");
+  else toast("Lagret: " + qty + " × " + pname(sale) + ", " + kr(sold) + " (" + sale.payment + ")" + (left !== null && left <= 0 ? ". Obs: lageret viser nå " + left + "." : ""));
+  playSale();
 }
 
 const NEEDS_SHEET = "Sletting krever tilkobling til Google Sheet og administratorpassord. Koble til under «Google Sheet».";
@@ -653,7 +911,7 @@ async function deleteSale(id){
   const s = state.sales.find(x => x.id === id);
   if (!s) return;
   if (!cfg.url) { toast(NEEDS_SHEET); return; }
-  const what = s.qty + " × " + s.product + ", " + kr(s.soldTotal) + " (" + s.seller + ", " + s.payment + ")";
+  const what = s.qty + " × " + pname(s) + ", " + kr(s.soldTotal) + " (" + s.seller + ", " + s.payment + ")";
   const r = canOwn(s)
     ? await adminAction("Slette dette salget?", what + ". Du kan slette dine egne salg uten passord i " + minsLeft(s) + " min til.",
         () => ({ action: "ownDelete", id, device: deviceToken, by: s.seller }), { own: true, pre: () => ensureOnServer(s) })
@@ -662,6 +920,82 @@ async function deleteSale(id){
   state.sales = state.sales.filter(x => x.id !== id);
   save(); renderAll();
   toast("Salget er slettet. Raden står igjen i Google Sheet, merket som slettet.");
+  playDelete();
+}
+
+/* ---------- Dagsoppgjør ---------- */
+function dayText(){
+  const v = state.sales.filter(inPeriod);
+  const stand = $("standFilter").value;
+  let sold = 0, disc = 0, qty = 0;
+  const pay = { Vipps: 0, Kontant: 0, Bank: 0, Annet: 0 }, cashFx = {}, prods = new Map(), sellers = new Map();
+  for (const s of v) {
+    sold += s.soldTotal; disc += s.discount; qty += s.qty;
+    const pk = payKey(s.payment); pay[pk] += s.soldTotal;
+    if (pk === "Kontant" && s.cur && s.cur !== "NOK") cashFx[s.cur] = (cashFx[s.cur] || 0) + s.local;
+    const p = prods.get(s.product) || { q: 0, sum: 0, z: new Map() }; prods.set(s.product, p);
+    p.q += s.qty; p.sum += s.soldTotal; if (s.size) p.z.set(s.size, (p.z.get(s.size) || 0) + s.qty);
+    sellers.set(s.seller, (sellers.get(s.seller) || 0) + s.soldTotal);
+  }
+  const L = [];
+  L.push("Dagsoppgjør " + new Date().toLocaleDateString("no-NO") + (stand ? " – " + stand : "") + ($("period").value === "idag" ? "" : " (alle salg)"));
+  L.push(v.length + " salg, " + qty + " varer");
+  L.push("Omsetning: " + kr(sold) + (disc > 0 ? " (rabatt gitt " + kr(disc) + ")" : ""));
+  PAYMENTS.forEach(p => L.push(p + ": " + kr(pay[p])));
+  const fx = Object.entries(cashFx).map(([c, n]) => nf2(n) + " " + c);
+  const cashNok = v.filter(s => payKey(s.payment) === "Kontant" && (!s.cur || s.cur === "NOK")).reduce((t, s) => t + s.soldTotal, 0);
+  L.push("Kontant i kassa: " + [kr(cashNok), ...fx].join(" + "));
+  L.push("", "Produkter:");
+  [...prods.entries()].sort((a, b) => byName(a[0], b[0])).forEach(([n, p]) => L.push("- " + p.q + " × " + n + (p.z.size ? " (" + [...p.z.entries()].map(([z, q]) => z + ": " + q).join(", ") + ")" : "") + ": " + kr(p.sum)));
+  L.push("", "Selgere:");
+  [...sellers.entries()].sort((a, b) => byName(a[0], b[0])).forEach(([n, t]) => L.push("- " + n + ": " + kr(t)));
+  return L.join("\n");
+}
+async function copyDay(){
+  const t = dayText(), o = $("dayOut");
+  o.textContent = t; o.hidden = false;
+  try { await navigator.clipboard.writeText(t); toast("Dagsoppgjøret er kopiert."); } catch(e){ toast("Kunne ikke kopiere. Teksten står under knappen."); }
+}
+
+let imgIdx = -1;
+function shrinkImage(file){
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      URL.revokeObjectURL(url);
+      const m = Math.min(1, 240 / Math.max(im.width, im.height)), w = Math.max(1, Math.round(im.width * m)), h = Math.max(1, Math.round(im.height * m));
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.drawImage(im, 0, 0, w, h);
+      let q = 0.75, out = c.toDataURL("image/jpeg", q);
+      while (out.length > 40000 && q > 0.3) { q -= 0.1; out = c.toDataURL("image/jpeg", q); }
+      out.length > 40000 ? rej(new Error("for stort")) : res(out);
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); rej(new Error("ikke et bilde")); };
+    im.src = url;
+  });
+}
+async function pickImage(file){
+  const p = state.products[imgIdx]; if (!file || !p) return;
+  let data;
+  try { data = await shrinkImage(file); } catch(e){ toast("Kunne ikke bruke bildet (" + e.message + ")."); return; }
+  if (cfg.url) { const r = await adminAction("Sett produktbilde", p.name, () => ({ action: "setImage", name: p.name, image: data })); if (!r) return; }
+  p.image = data; save(); renderAll(); toast("Bildet er lagret."); scheduleSync();
+}
+
+async function saveStock(){
+  const items = [...document.querySelectorAll("#stockList input[data-stock]")].filter(i => i.value.trim() !== "")
+    .map(i => ({ product: i.dataset.sp, size: i.dataset.sz, count: Math.max(0, Math.round(Number(i.value) || 0)) }));
+  if (!items.length) { toast("Skriv inn talt antall på minst ett produkt."); return; }
+  if (cfg.url) {
+    const r = await adminAction("Lagre varetelling", items.length + " linjer lagres. Salg fra nå av trekkes fra beholdningen.", () => ({ action: "setStock", items }));
+    if (!r) return;
+  }
+  const now = Date.now();
+  for (const it of items) {
+    const row = stockRow(it.product, it.size);
+    if (row) { row.count = it.count; row.ts = now; } else state.stock.push({ product: it.product, size: it.size, count: it.count, ts: now });
+  }
+  save(); renderAll(); toast("Varetellingen er lagret."); scheduleSync();
 }
 
 /* ---------- Eksport / import ---------- */
@@ -679,11 +1013,11 @@ const csvCell = v => {
   return '"' + s.replace(/"/g, '""') + '"';
 };
 function exportCSV(){
-  const head = ["Dato","Tid","Selger","Produkt","Antall","Normalpris per stk","Normal totalt","Solgt totalt","Rabatt","Betaling","Kommentar","ID"];
+  const head = ["Dato","Tid","Selger","Produkt","Antall","Normalpris per stk","Normal totalt","Solgt totalt","Rabatt","Betaling","Kommentar","ID","Stand","Størrelse","Valuta","Kurs","Beløp lokal valuta"];
   const rows = state.sales.map(s => {
     const d = s.ts ? new Date(s.ts) : null;
     return [d ? d.toLocaleDateString("sv-SE") : s.date, d ? d.toLocaleTimeString("no-NO", { hour: "2-digit", minute: "2-digit" }) : "",
-      s.seller, s.product, s.qty, s.normalPrice, s.normalTotal, s.soldTotal, s.discount, s.payment, s.note, s.id];
+      s.seller, s.product, s.qty, s.normalPrice, s.normalTotal, s.soldTotal, s.discount, s.payment, s.note, s.id, s.stand, s.size, s.cur, s.rate, s.local];
   });
   const csv = "﻿" + [head, ...rows].map(r => r.map(csvCell).join(";")).join("\r\n");
   download("klubbsalg-" + stamp() + ".csv", csv, "text/csv;charset=utf-8");
@@ -738,11 +1072,12 @@ async function registryClick(e){
   if (t.dataset.saveprice !== undefined) {
     const p = state.products[Number(t.dataset.saveprice)]; if (!p) return;
     const price = Math.max(0, Number(document.querySelector('input[data-price="' + t.dataset.saveprice + '"]').value) || 0);
+    const sizes = [...new Set(String(document.querySelector('input[data-sizes="' + t.dataset.saveprice + '"]').value).split(/[,;\/]+/).map(clean).filter(Boolean))];
     if (cfg.url) {
-      const r = await adminAction("Endre standardpris", p.name + ": " + kr(price), () => ({ action: "setPrice", name: p.name, price }));
+      const r = await adminAction("Endre produkt", p.name + ": " + kr(price) + (sizes.length ? ", størrelser " + sizes.join(", ") : ", ingen størrelser"), () => ({ action: "setPrice", name: p.name, price, sizes }));
       if (!r) return;
     }
-    p.normalPrice = price; save(); renderAll(); toast("Pris lagret."); scheduleSync();
+    p.normalPrice = price; p.sizes = sizes; save(); renderAll(); toast("Produkt lagret."); scheduleSync();
   } else if (t.dataset.rmprod !== undefined) {
     const i = Number(t.dataset.rmprod), p = state.products[i]; if (!p) return;
     if (cfg.url) {
@@ -755,6 +1090,20 @@ async function registryClick(e){
     }
     state.products.splice(i, 1);
     save(); renderAll(); toast(p.name + " er fjernet fra listen.", "Angre", () => { state.products.splice(i, 0, p); save(); renderAll(); });
+  } else if (t.dataset.img !== undefined) {
+    imgIdx = Number(t.dataset.img); $("imgFile").value = ""; $("imgFile").click();
+  } else if (t.dataset.rmimg !== undefined) {
+    const p = state.products[Number(t.dataset.rmimg)]; if (!p) return;
+    if (cfg.url) { const r = await adminAction("Fjern bilde", p.name, () => ({ action: "setImage", name: p.name, image: "" })); if (!r) return; }
+    p.image = ""; save(); renderAll(); toast("Bildet er fjernet."); scheduleSync();
+  } else if (t.dataset.rmstand !== undefined) {
+    const x = state.stands[Number(t.dataset.rmstand)]; if (!x) return;
+    if (cfg.url) {
+      const r = await adminAction("Fjern stand", x.name + " fjernes fra valglisten. Registrerte salg beholdes.", () => ({ action: "removeStand", name: x.name }));
+      if (!r) return;
+    }
+    state.stands = state.stands.filter(y => y.name !== x.name);
+    save(); renderAll(); toast(x.name + " er fjernet."); scheduleSync();
   } else if (t.dataset.rmsell !== undefined) {
     const i = Number(t.dataset.rmsell), n = state.sellers[i]; if (n === undefined) return;
     if (cfg.url) {
@@ -789,7 +1138,8 @@ const getJ = action => net("GET", action);
 const postJ = body => net("POST", body);
 const errText = e => (e && e.message && !/^(Failed to fetch|Load failed)$|NetworkError/.test(e.message)) ? e.message : "ingen nettforbindelse";
 const wire = s => ({ id: s.id, ts: s.ts, seller: s.seller, product: s.product, qty: s.qty, normalPrice: s.normalPrice,
-  normalTotal: s.normalTotal, soldTotal: s.soldTotal, discount: s.discount, payment: s.payment, note: s.note });
+  normalTotal: s.normalTotal, soldTotal: s.soldTotal, discount: s.discount, payment: s.payment, note: s.note,
+  stand: s.stand, size: s.size, cur: s.cur, rate: s.rate, local: s.local });
 
 function scheduleSync(){ if (!cfg.url) return; clearTimeout(syncSoon); syncSoon = setTimeout(syncNow, 400); }
 
@@ -802,16 +1152,18 @@ function applyServer(all){
   const byId = new Map((all.sales || []).map(x => [String(x.id), x]));
   for (const s of state.sales) {
     const c = s.synced ? cleanSale(byId.get(s.id)) : null;
-    if (c) Object.assign(s, { product: c.product, qty: c.qty, normalPrice: c.normalPrice, normalTotal: c.normalTotal, soldTotal: c.soldTotal, discount: c.discount, payment: c.payment, note: c.note });
+    if (c) Object.assign(s, { product: c.product, qty: c.qty, normalPrice: c.normalPrice, normalTotal: c.normalTotal, soldTotal: c.soldTotal, discount: c.discount, payment: c.payment, note: c.note, stand: c.stand, size: c.size, cur: c.cur, rate: c.rate, local: c.local });
   }
   mergeIn({ sales: all.sales || [] }, true, true);
   let needsPush = false;
   const srvSellers = (all.sellers || []).map(clean).filter(Boolean);
-  const srvProducts = (all.products || []).map(p => ({ name: clean(p.name), normalPrice: Math.max(0, Number(p.normalPrice) || 0) })).filter(p => p.name);
+  const srvProducts = (all.products || []).map(p => ({ name: clean(p.name), normalPrice: Math.max(0, Number(p.normalPrice) || 0), sizes: cleanSizes(p.sizes), image: /^data:image\/jpeg;base64,/.test(String(p.image || "")) ? String(p.image) : "" })).filter(p => p.name);
+  if (Array.isArray(all.stands)) state.stands = cleanStands(all.stands);
+  if (Array.isArray(all.stock)) state.stock = cleanStock(all.stock);
   if (srvSellers.length) state.sellers = srvSellers.sort(byName);
   else if (state.sellers.length) { state.pend.sellers = state.sellers.slice(); needsPush = true; }
   if (srvProducts.length) state.products = srvProducts.sort((a, b) => byName(a.name, b.name));
-  else if (state.products.length) { state.pend.products = state.products.map(p => ({...p})); needsPush = true; }
+  else if (state.products.length) { state.pend.products = state.products.map(p => ({ name: p.name, normalPrice: p.normalPrice })); needsPush = true; }
   state.pend.sellers.forEach(n => addSellerName(n));
   state.pend.products.forEach(p => addProductRecord(p.name, p.normalPrice));
   return needsPush;
@@ -924,8 +1276,9 @@ function openEdit(id){
   if (!names.includes(s.product)) names.push(s.product);
   $("eProduct").innerHTML = names.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join("");
   $("eProduct").value = s.product; $("eQty").value = s.qty; $("ePrice").value = s.normalPrice || "";
-  $("eSold").value = s.soldTotal; $("ePay").value = PAYMENTS.includes(s.payment) ? s.payment : "Annet"; $("eNote").value = s.note;
-  $("eInfo").textContent = s.seller + " · " + dateText(s) + " · kan endres i " + minsLeft(s) + " min til";
+  $("eSoldLbl").textContent = "Solgt for totalt (" + (s.cur && s.cur !== "NOK" ? s.cur : "kr") + ")";
+  $("eSold").value = s.cur && s.cur !== "NOK" ? s.local : s.soldTotal; $("ePay").value = PAYMENTS.includes(s.payment) ? s.payment : "Annet"; $("eNote").value = s.note;
+  $("eInfo").textContent = s.seller + (s.stand ? " · " + s.stand : "") + (s.size ? " · str. " + s.size : "") + " · " + dateText(s) + " · kan endres i " + minsLeft(s) + " min til";
   $("eMsg").hidden = true; $("eSave").disabled = false; $("editModal").hidden = false; $("eQty").focus();
 }
 function closeEdit(){ $("editModal").hidden = true; editingId = null; }
@@ -940,12 +1293,13 @@ async function saveEdit(ev){
   if (!(np >= 0)) return msg("Normalpris kan ikke være negativ.");
   const soldRaw = $("eSold").value.trim();
   if (soldRaw === "") return msg("Skriv inn beløpet kunden betalte (0 hvis gitt bort).");
-  const sold = Number(soldRaw);
-  if (!(sold >= 0)) return msg("Salgsbeløpet kan ikke være negativt.");
+  const local = Number(soldRaw);
+  if (!(local >= 0)) return msg("Salgsbeløpet kan ikke være negativt.");
+  const sold = s.cur && s.cur !== "NOK" ? Math.round(local * s.rate * 100) / 100 : local;
   $("eMsg").hidden = true; $("eSave").disabled = true;
   try {
     await ensureOnServer(s);
-    const r = await postJ({ action: "ownEdit", id: s.id, device: deviceToken, product: $("eProduct").value, qty, normalPrice: np, soldTotal: sold, payment: $("ePay").value, note: $("eNote").value.trim() });
+    const r = await postJ({ action: "ownEdit", id: s.id, device: deviceToken, product: $("eProduct").value, qty, normalPrice: np, soldTotal: sold, local, payment: $("ePay").value, note: $("eNote").value.trim() });
     if (r.ok) { Object.assign(s, r.sale, { synced: true }); save(); renderAll(); closeEdit(); toast("Endringen er lagret."); scheduleSync(); return; }
     msg(ownError(r));
   } catch(e){ msg(e.userMessage || "Fikk ikke kontakt med Google Sheet (" + errText(e) + "). Endring krever internett."); }
@@ -1015,15 +1369,57 @@ function init(){
   if (note) bakMsg(note, loadedOk ? "ok" : "err");
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch(e){}
   makeIcon();
+  try {
+    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1"))
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+  } catch(e){}
 
   $("saleForm").addEventListener("submit", addSale);
+  $("vippsOpt").checked = vippsEnabled();
+  $("vippsOpt").addEventListener("change", () => writeLS(VIPPS_OPT_KEY, $("vippsOpt").checked ? "1" : "0"));
+  $("vippsCancel").addEventListener("click", vippsClose);
+  $("vippsOk").addEventListener("click", () => { const f = vippsDone; vippsClose(); if (f) f(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("vippsModal").hidden) vippsClose(); });
+  renderSoundBtn();
+  $("soundBtn").addEventListener("click", toggleSound);
+  document.addEventListener("pointerdown", () => { if (soundOn) audio(); }, { once: true });
+  $("verTxt").textContent = "· v" + APP_VERSION; $("verFoot").textContent = "Klubbsalg v" + APP_VERSION;
+  $("standSelect").addEventListener("change", standChanged);
+  $("standFilter").addEventListener("change", () => { renderSummary(); renderSales(); });
+  $("sizeSelect").addEventListener("change", renderStockInfo);
+  $("tiles").addEventListener("click", e => {
+    const b = e.target.closest("button[data-prod]"); if (!b) return;
+    $("productSelect").value = b.dataset.prod; productChanged();
+  });
+  $("qtys").addEventListener("click", e => {
+    const b = e.target.closest("button[data-q]"); if (!b) return;
+    $("qty").value = b.dataset.q; updatePlaceholder();
+  });
+  $("dayBtn").addEventListener("click", copyDay);
+  $("imgFile").addEventListener("change", e => { if (e.target.files[0]) pickImage(e.target.files[0]); });
+  $("saveStockBtn").addEventListener("click", saveStock);
+  $("standList").addEventListener("click", registryClick);
+  $("addStandBtn").addEventListener("click", async () => {
+    const name = clean($("manualStand").value), cur = (clean($("manualCur").value) || "NOK").toUpperCase();
+    const rate = cur === "NOK" ? 1 : Number($("manualRate").value);
+    if (!name) { toast("Skriv inn navn på standen."); return; }
+    if (!(rate > 0)) { toast("Skriv inn kursen (hvor mange kroner én " + cur + " er)."); return; }
+    if (cfg.url) {
+      const r = await adminAction("Legg til stand", name + (cur === "NOK" ? "" : ": " + cur + ", kurs " + nf2(rate)), () => ({ action: "setStand", name, cur, rate }));
+      if (!r) return;
+    }
+    const hit = state.stands.find(x => lc(x.name) === lc(name));
+    if (hit) { hit.cur = cur; hit.rate = rate; } else state.stands.push({ name, cur, rate });
+    state.stands.sort((a, b) => byName(a.name, b.name));
+    save(); $("manualStand").value = ""; $("manualRate").value = ""; renderAll(); toast("Stand lagret."); scheduleSync();
+  });
   $("sellerSelect").addEventListener("change", sellerChanged);
   $("productSelect").addEventListener("change", productChanged);
   $("qty").addEventListener("input", updatePlaceholder);
   $("normalPrice").addEventListener("input", updatePlaceholder);
   $("fullPriceBtn").addEventListener("click", () => {
     const q = Number($("qty").value) || 0, np = Number($("normalPrice").value) || 0;
-    if (q > 0 && np > 0) $("soldTotal").value = q * np; else $("normalPrice").focus();
+    if (q > 0 && np > 0) $("soldTotal").value = Math.round(q * np / curStand().rate * 100) / 100; else $("normalPrice").focus();
   });
   $("period").addEventListener("change", () => { renderSummary(); renderSales(); });
   $("salesBody").addEventListener("click", e => {
