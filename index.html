@@ -1481,6 +1481,14 @@ function init(){
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("vippsModal").hidden) vippsClose(); });
   renderSoundBtn();
   $("soundBtn").addEventListener("click", toggleSound);
+  // Velkomsten vises bare de 3 første gangene appen åpnes hvert døgn (per telefon)
+  try {
+    const k = KEY + "_velkomst", today = new Date().toLocaleDateString("sv-SE");
+    let d = JSON.parse(readLS(k) || "{}");
+    if (!d || d.day !== today) d = { day: today, n: 0 };
+    d.n = (Number(d.n) || 0) + 1; writeLS(k, JSON.stringify(d));
+    if (d.n > 3) { welcomed = true; $("welcome").hidden = true; }
+  } catch(e){}
   ["click", "touchend", "pointerup", "keydown"].forEach(ev => {
     document.addEventListener(ev, () => { if (soundOn) audio(); playWelcome(); }, { passive: true });   // låser opp lyd og spiller velkomsten ved første berøring
   });
