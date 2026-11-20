@@ -1,6 +1,6 @@
 // Klubbsalg: gjør at appen kan startes uten nett etter første besøk.
 // Selve salgsdataene ligger i telefonen og i Google Sheet, ikke her.
-const CACHE = "klubbsalg-v8b";
+const CACHE = "klubbsalg-v9-jul";
 const FILES = ["./", "./index.html"];
 
 self.addEventListener("install", e => {

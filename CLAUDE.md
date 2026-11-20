@@ -54,3 +54,7 @@ Workflow for a backend change:
 - Deleting is soft (timestamp in «Slettet»); sellers may edit/delete their own sales for 30 minutes without password,
   checked on the server. Do not move password checks into the app.
 - Don't change the `localStorage` keys without migrating existing data – devices may hold unsynced sales.
+
+## Julepynt
+
+`julepynt()` (end of the script) adds `body.jul` from 20 Nov to 6 Jan: string of lights under the header (CSS `body.jul header::before/::after`) and snow in a canvas `#julsno` (paused when hidden, off with reduced motion). Turns itself off by date; no need to remove it.
